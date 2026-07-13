@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, type Request, type Response, type NextFunction } from 'express'
 import crypto from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { createClient } from '@supabase/supabase-js'
@@ -63,6 +63,26 @@ function pruneExpired<T extends { createdAt: number }>(store: Map<string, T>, tt
   for (const [key, value] of store) {
     if (now - value.createdAt > ttlMs) store.delete(key)
   }
+}
+
+// /authorize/:flowId/complete is the only endpoint in this router called
+// directly by browser JS (the frontend's /mcp-authorize consent screen,
+// via fetch) rather than by the MCP client itself — a cross-origin request
+// (different port = different origin) needs CORS headers or the browser
+// blocks it before the response body is ever readable, surfacing as an
+// opaque "NetworkError" in the console with no status code to debug from.
+// Scoped to frontendUrl only, and only on this one route: every other
+// endpoint here is server-to-server (MCP client) or a top-level navigation
+// (redirect), neither of which a browser's CORS policy applies to.
+function allowFrontendCors(req: Request, res: Response, next: NextFunction): void {
+  res.setHeader('Access-Control-Allow-Origin', frontendUrl)
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(204)
+    return
+  }
+  next()
 }
 
 export function createOAuthRouter(): Router {
@@ -141,13 +161,15 @@ export function createOAuthRouter(): Router {
     res.redirect(consentUrl.toString())
   })
 
+  router.options('/authorize/:flowId/complete', allowFrontendCors)
+
   // Called by the frontend's /mcp-authorize consent screen once the user
   // has a real Supabase session and clicks "Authorize" — completes the
   // pending flow with their real identity and returns the URL the
   // frontend should redirect the browser to next (the MCP client's own
   // redirect_uri, carrying the authorization code).
-  router.post('/authorize/:flowId/complete', async (req, res) => {
-    const { flowId } = req.params
+  router.post('/authorize/:flowId/complete', allowFrontendCors, async (req, res) => {
+    const flowId = req.params.flowId as string
     const { access_token: accessToken } = req.body as Record<string, string>
 
     pruneExpired(pendingFlows, FLOW_TTL_MS)

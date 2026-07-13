@@ -147,6 +147,38 @@ describe('POST /oauth/authorize/:flowId/complete', () => {
     expect(res.status).toBe(401)
   })
 
+  it('sends the CORS headers the frontend needs to read the response cross-origin', async () => {
+    // Regression guard: /mcp-authorize (the frontend, on its own port —
+    // a different origin from this server) calls this endpoint via
+    // fetch(). Without Access-Control-Allow-Origin, the browser blocks the
+    // response before JS ever sees it, surfacing as an opaque
+    // "NetworkError" with no status code to debug from — this endpoint is
+    // the one route in this router actually called from browser JS rather
+    // than server-to-server or via top-level navigation.
+    const app = makeApp()
+    const preflight = await request(app)
+      .options('/oauth/authorize/some-flow/complete')
+      .set('Origin', 'http://localhost:5173')
+    expect(preflight.status).toBe(204)
+    expect(preflight.headers['access-control-allow-origin']).toBe('http://localhost:5173')
+
+    const clientId = await registerClient(app, ['https://claude.ai/callback'])
+    const authRes = await request(app).get('/oauth/authorize').query({
+      client_id: clientId,
+      redirect_uri: 'https://claude.ai/callback',
+      code_challenge: 'YmFzZTY0dXJsLWNoYWxsZW5nZQ',
+      code_challenge_method: 'plain',
+      scope: 'read',
+    })
+    const flowId = new URL(authRes.headers.location!).searchParams.get('flow')!
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-123' } }, error: null })
+
+    const res = await request(app)
+      .post(`/oauth/authorize/${flowId}/complete`)
+      .send({ access_token: fakeSupabaseAccessToken('session-abc') })
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173')
+  })
+
   it('completes the flow and returns the client redirect_uri carrying a code, once given a real Supabase session', async () => {
     const app = makeApp()
     const clientId = await registerClient(app, ['https://claude.ai/callback'])
