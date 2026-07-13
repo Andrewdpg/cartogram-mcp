@@ -124,6 +124,15 @@ function buildMcpServer(claims: McpTokenClaims): McpServer {
 export function createApp(): express.Express {
   const app = express()
   app.use(express.json())
+  // OAuth 2.0's token endpoint (RFC 6749 §4.1.3) MUST use
+  // application/x-www-form-urlencoded, not JSON — Claude Code (and OAuth
+  // clients generally) POST /oauth/token that way. Without this, req.body
+  // was undefined for that content type, throwing a raw unhandled
+  // TypeError (visible to the client as a malformed HTML error page, not
+  // a proper OAuth error response). /register and /authorize/:id/complete
+  // are this server's own JSON endpoints and are unaffected — Express only
+  // applies each body parser when its Content-Type matches.
+  app.use(express.urlencoded({ extended: true }))
 
   // OAuth 2.0 Authorization Server Metadata (RFC 8414). MCP clients fetch
   // this before /authorize to discover the actual endpoint paths rather
@@ -152,6 +161,17 @@ export function createApp(): express.Express {
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
     await server.connect(transport)
     await transport.handleRequest(req, res, req.body)
+  })
+
+  // Last-resort error handler: without one, an uncaught throw (a
+  // malformed request body Express couldn't parse, a bug in a route) falls
+  // through to Express's default HTML error page. OAuth/MCP clients expect
+  // JSON error responses on every endpoint here — an HTML body breaks
+  // their error parsing outright (the exact "Unrecognized token '<'" this
+  // was debugged from), not just looking unpolished.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    res.status(500).json({ error: 'server_error', error_description: err.message })
   })
 
   return app

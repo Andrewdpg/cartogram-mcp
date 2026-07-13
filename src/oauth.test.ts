@@ -51,6 +51,12 @@ import { markMcpSession } from './mcpSessions.js'
 function makeApp() {
   const app = express()
   app.use(express.json())
+  // Mirrors server.ts's real middleware stack: OAuth's token endpoint
+  // (RFC 6749 §4.1.3) MUST use application/x-www-form-urlencoded, not
+  // JSON — real OAuth clients (Claude Code included) POST /oauth/token
+  // that way. Without this parser, req.body was undefined for that
+  // content type.
+  app.use(express.urlencoded({ extended: true }))
   app.use('/oauth', createOAuthRouter())
   return app
 }
@@ -234,6 +240,21 @@ describe('POST /oauth/token', () => {
         code: 'does-not-exist',
         code_verifier: 'irrelevant',
       })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('invalid_grant')
+  })
+
+  it('parses a real OAuth client\'s application/x-www-form-urlencoded request body, not just JSON', async () => {
+    // Regression guard: RFC 6749 §4.1.3 mandates form-urlencoded for this
+    // endpoint. Before express.urlencoded() was added, req.body was
+    // undefined for this content type, throwing an uncaught TypeError that
+    // leaked Express's raw HTML error page instead of an OAuth-shaped JSON
+    // error — which broke Claude Code's own error parsing outright.
+    const app = makeApp()
+    const res = await request(app)
+      .post('/oauth/token')
+      .type('form')
+      .send('grant_type=authorization_code&code=does-not-exist&code_verifier=irrelevant')
     expect(res.status).toBe(400)
     expect(res.body.error).toBe('invalid_grant')
   })
