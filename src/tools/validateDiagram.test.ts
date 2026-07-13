@@ -2,15 +2,27 @@ import { describe, it, expect } from 'vitest'
 import { validateDiagramTool } from './validateDiagram.js'
 
 describe('validateDiagramTool', () => {
-  it('returns valid: true for a well-formed diagram', () => {
+  it('accepts just {nodes, edges} — the shape create_diagram/update_diagram actually pass, with no id/title required', () => {
+    // Regression guard: this tool previously required id/title on the
+    // input (validateDiagramShape's own requirement), but nothing an agent
+    // has on hand before calling create_diagram/update_diagram includes
+    // those — only the content parameter, which is just {nodes, edges}.
+    // Every real call failed with "missing id" regardless of whether
+    // nodes/edges were actually well-formed.
     const result = validateDiagramTool({
-      id: 'd', title: 'D', nodes: [{ id: 'a', label: 'A', kind: 'service' }], edges: [],
+      nodes: [{ id: 'a', label: 'A', kind: 'service' }],
+      edges: [],
     })
     expect(result).toEqual({ valid: true })
   })
 
+  it('rejects a non-object payload', () => {
+    const result = validateDiagramTool('not an object')
+    expect(result.valid).toBe(false)
+  })
+
   it('returns valid: false with a reason for a malformed diagram', () => {
-    const result = validateDiagramTool({ id: 'd', title: 'D', nodes: [{ id: 'a' }], edges: [] })
+    const result = validateDiagramTool({ nodes: [{ id: 'a' }], edges: [] })
     expect(result.valid).toBe(false)
     expect((result as { reason: string }).reason).toMatch(/missing "label"/)
   })
@@ -22,8 +34,6 @@ describe('validateDiagramTool', () => {
     // silently accepted and dropped, giving no signal the mechanism didn't
     // exist. Unknown fields must fail loudly now.
     const result = validateDiagramTool({
-      id: 'd',
-      title: 'D',
       nodes: [{ id: 'a', label: 'A', kind: 'service', parent: 'host' }],
       edges: [],
     })
@@ -33,8 +43,6 @@ describe('validateDiagramTool', () => {
 
   it('rejects an unrecognized field on an edge', () => {
     const result = validateDiagramTool({
-      id: 'd',
-      title: 'D',
       nodes: [
         { id: 'a', label: 'A', kind: 'service' },
         { id: 'b', label: 'B', kind: 'service' },

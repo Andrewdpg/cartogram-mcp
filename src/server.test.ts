@@ -73,4 +73,16 @@ describe('create_diagram/update_diagram node schema', () => {
     const result = nodeSchema.safeParse({ id: 'a', label: 'A', kind: 'service', parent: 'host' })
     expect(result.success).toBe(false)
   })
+
+  it('describes kind semantically (when to use each), not just "drives the shape"', () => {
+    // Regression guard: the original description only said kind "drives
+    // the rendered shape" — true, but useless for choosing between e.g.
+    // "server" (a host machine) vs "container" (a deployable unit) vs
+    // "system" (a subsystem grouping several deployables). A cold agent
+    // improvised its own taxonomy without this, inconsistently across
+    // projects.
+    const description = nodeSchema.shape.kind.description ?? ''
+    expect(description).toMatch(/host/i)
+    expect(description).toMatch(/deployable/i)
+  })
 })

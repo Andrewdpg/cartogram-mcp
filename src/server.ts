@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { createOAuthRouter } from './oauth.js'
 import { verifyMcpToken, type McpTokenClaims } from './mcpToken.js'
 import { listProjectsTool } from './tools/listProjects.js'
+import { listDiagramsTool } from './tools/listDiagrams.js'
 import { getDiagramTool } from './tools/getDiagram.js'
 import { createProjectTool } from './tools/createProject.js'
 import { createDiagramTool } from './tools/createDiagram.js'
@@ -36,7 +37,18 @@ export const nodeSchema = z
     label: z.string(),
     kind: z
       .enum(['system', 'container', 'component', 'service', 'server', 'database', 'class', 'external', 'bridge'])
-      .describe(`One of: ${NODE_KINDS.join(', ')}. Drives the rendered shape (a database is a cylinder, etc).`),
+      .describe(
+        `One of: ${NODE_KINDS.join(', ')}. Drives both the rendered shape and the intended semantic level — pick by what the node actually IS, not by how important it looks:\n` +
+          '- "system": a whole logical subsystem grouping several real deployables (e.g. "Observability" grouping Prometheus+Grafana+Tempo). Not a single running process — if it maps to one container/service, use "container" or "service" instead.\n' +
+          '- "container" (C4 sense — a deployable unit, NOT a Docker container specifically): one independently deployable process — a Docker container, a compiled binary, a running service instance.\n' +
+          '- "service": a container-kind node emphasizing its role in a request/response flow (an API, a worker) — use "container" for the generic case, "service" when the diagram is specifically about request flow.\n' +
+          '- "component": a piece INSIDE a container that is not separately deployable — a plugin, a module, an in-process library.\n' +
+          '- "server": a physical or virtual HOST machine — where containers/services run, not a runnable unit itself. A Docker host, a VM, a user\'s laptop.\n' +
+          '- "database": a datastore — Postgres, Redis, an object store. Always a leaf (no childDiagram).\n' +
+          '- "external": a third-party system outside this codebase\'s control — an external API, an upstream SaaS. Always a leaf.\n' +
+          '- "class": for uml-structural notation only — a class/type with attributes/operations.\n' +
+          '- "bridge": a network/protocol boundary crossing (e.g. a load balancer, an API gateway acting purely as a pass-through) — rare; most "gateway" services that also do real routing/auth logic are "container"/"service" instead.'
+      ),
     childDiagram: z
       .string()
       .optional()
@@ -101,9 +113,22 @@ function buildMcpServer(claims: McpTokenClaims): McpServer {
   )
 
   server.registerTool(
+    'list_diagrams',
+    {
+      description:
+        'List every diagram (slug + title) in a project. Call this before creating or editing anything in a project you did not just create yourself — it is the only way to discover what already exists, since get_diagram requires knowing the slug up front and cannot enumerate. Also useful to check for a stray "deployment" diagram before calling create_diagram with that slug (see create_project\'s description for why one may already exist).',
+      inputSchema: { projectId: z.string() },
+    },
+    async ({ projectId }) => ({
+      content: [{ type: 'text', text: JSON.stringify(await listDiagramsTool(claims, projectId)) }],
+    })
+  )
+
+  server.registerTool(
     'get_diagram',
     {
-      description: 'Fetch a diagram by project id and slug',
+      description:
+        'Fetch a diagram by project id and slug. If you don\'t already know the slug, call list_diagrams first — there is no way to browse without it.',
       inputSchema: { projectId: z.string(), slug: z.string() },
     },
     async ({ projectId, slug }) => ({
@@ -113,7 +138,11 @@ function buildMcpServer(claims: McpTokenClaims): McpServer {
 
   server.registerTool(
     'create_project',
-    { description: 'Create a new project', inputSchema: { name: z.string() } },
+    {
+      description:
+        'Create a new project. IMPORTANT: this automatically seeds an empty diagram at slug "deployment" (the web UI\'s root route always resolves to that slug) — do NOT call create_diagram with slug "deployment" afterward, it will fail with a duplicate-slug error. Instead call update_diagram on slug "deployment" to fill it in, or call list_diagrams first if you\'re unsure whether it already exists.',
+      inputSchema: { name: z.string() },
+    },
     async ({ name }) => ({
       content: [{ type: 'text', text: JSON.stringify(await createProjectTool(claims, name)) }],
     })
@@ -123,7 +152,11 @@ function buildMcpServer(claims: McpTokenClaims): McpServer {
     'create_diagram',
     {
       description:
-        'Create a new diagram in a project. To build a drill-down hierarchy (a diagram whose nodes open other diagrams when clicked), create the child diagrams first, then set childDiagram on the parent node to the child\'s slug — see the content.nodes.childDiagram field description.',
+        'Create a new diagram in a project. Style guidance for a good architecture diagram, not just a valid one:\n' +
+        '- Prefer drill-down over one flat diagram. A root diagram should show only high-level nodes (hosts, subsystems, major services) with no low-level detail crammed in — put internals (individual processes inside a host, components inside a service) in a separate child diagram and link it via childDiagram on the parent node. See the content.nodes.childDiagram field description for the create-child-then-link workflow.\n' +
+        '- Cite real code whenever you assert something about the codebase. Use sourceRefs (file path, optionally with a line range) on every node whose responsibility/techStack claim is grounded in something you actually read — do not describe a service from memory or inference alone if the source is available.\n' +
+        '- Use responsibility for a one-line "what this does and its role," not a restatement of the label.\n' +
+        '- Before calling this on slug "deployment" in a project you did not just create, call list_diagrams first — create_project auto-seeds an empty one, and creating it again fails.',
       inputSchema: {
         projectId: z.string(),
         slug: z.string(),
@@ -161,7 +194,11 @@ function buildMcpServer(claims: McpTokenClaims): McpServer {
 
   server.registerTool(
     'validate_diagram',
-    { description: 'Validate a diagram payload before writing it', inputSchema: { content: z.any() } },
+    {
+      description:
+        'Dry-run validate a { nodes, edges } payload (the same shape as create_diagram/update_diagram\'s content parameter) before writing it — no database write, safe to call as often as needed. Unlike create_diagram/update_diagram, this accepts a malformed payload without erroring at the protocol level (inputSchema is deliberately unvalidated here) — it returns { valid: false, reason } instead, so you get a readable diagnosis rather than a hard failure while iterating.',
+      inputSchema: { content: z.any() },
+    },
     async ({ content }) => ({ content: [{ type: 'text', text: JSON.stringify(validateDiagramTool(content)) }] })
   )
 
