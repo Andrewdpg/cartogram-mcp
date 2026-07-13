@@ -8,15 +8,18 @@ access grants and read/write/admin scopes the user controls from
 
 ## Local development
 
-Requires the Supabase backend (`../supabase`, see the repo root README) running:
+Requires the Supabase backend running — see the sibling
+`architecture-map-supabase` repo:
 
-    supabase start   # from the repo root
+    supabase start   # from the architecture-map-supabase repo
 
-Then:
+Then, from this repo:
 
     cp .env.example .env
-    # fill in SUPABASE_URL / SUPABASE_ANON_KEY from `supabase start`'s output,
-    # and a random MCP_JWT_SIGNING_SECRET
+    # fill in SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
+    # from `supabase start`'s output, a random MCP_JWT_SIGNING_SECRET, and
+    # MCP_OAUTH_ALLOWED_REDIRECT_URIS (the exact redirect_uri your MCP
+    # client will use — required, /oauth/authorize rejects anything else)
     npm install
     npm run dev
 
@@ -38,9 +41,12 @@ Then:
 
 ## Known limitations
 
-- `/oauth/authorize`'s session check is a placeholder (see
-  `docs/superpowers/plans/2026-07-12-mcp-server.md` Task 4's follow-up note)
-  — wiring it to a real Supabase session via the web app's login flow is a
-  deployment-integration step not yet implemented.
+- `/oauth/authorize`'s session check is a placeholder — wiring it to a real
+  Supabase session via the web app's login flow is a deployment-integration
+  step not yet implemented. See
+  `docs/superpowers/plans/2026-07-12-mcp-server.md` in the
+  `architecture-map-front` repo (Task 4's follow-up note) for the original
+  design context.
 - `delete_project` and `remove_collaborator` are intentionally not exposed
-  (see the design doc's "explicitly deferred" section).
+  (destructive, low-value for the "document a repo" flow this is built
+  around — add later if there's real demand).
