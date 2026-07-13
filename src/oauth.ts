@@ -19,11 +19,36 @@ interface PendingAuthorization {
 // this service runs as more than one instance behind a load balancer.
 const pendingCodes = new Map<string, PendingAuthorization>()
 const CODE_TTL_MS = 5 * 60 * 1000
+const MAX_PENDING_CODES = 10_000
 
 function verifyPkce(verifier: string, challenge: string, method: 'plain' | 'S256'): boolean {
   if (method === 'plain') return verifier === challenge
   const hashed = crypto.createHash('sha256').update(verifier).digest('base64url')
   return hashed === challenge
+}
+
+// Comma-separated allowlist of exact redirect_uri values this server will
+// hand an authorization code to. Without this, /authorize is an open
+// redirect that also leaks the code itself: anyone can pass
+// redirect_uri=https://attacker.example/steal and have this endpoint
+// forward the code there. MCP clients (e.g. Claude Code) typically redirect
+// to a fixed loopback/HTTPS callback registered out of band — configure
+// that value here.
+const allowedRedirectUris = new Set(
+  (process.env.MCP_OAUTH_ALLOWED_REDIRECT_URIS ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+)
+
+function isAllowedRedirectUri(redirectUri: string | undefined): redirectUri is string {
+  return typeof redirectUri === 'string' && allowedRedirectUris.has(redirectUri)
+}
+
+function pruneExpiredCodes(): void {
+  const now = Date.now()
+  for (const [code, pending] of pendingCodes) {
+    if (now - pending.createdAt > CODE_TTL_MS) {
+      pendingCodes.delete(code)
+    }
+  }
 }
 
 export function createOAuthRouter(): Router {
@@ -40,6 +65,15 @@ export function createOAuthRouter(): Router {
       string,
       string
     >
+
+    if (!isAllowedRedirectUri(redirect_uri)) {
+      return res.status(400).json({ error: 'invalid_request', error_description: 'unregistered redirect_uri' })
+    }
+
+    pruneExpiredCodes()
+    if (pendingCodes.size >= MAX_PENDING_CODES) {
+      return res.status(503).json({ error: 'temporarily_unavailable' })
+    }
 
     const code = crypto.randomBytes(24).toString('base64url')
     // Placeholder session — see the design note above. Shaped as a decodable
