@@ -12,9 +12,17 @@ if (!secret) {
 }
 
 export function mintMcpToken(claims: McpTokenClaims): string {
-  return jwt.sign(claims, secret!, { expiresIn: '1h' })
+  return jwt.sign(claims, secret!, { expiresIn: '1h', algorithm: 'HS256' })
 }
 
 export function verifyMcpToken(token: string): McpTokenClaims {
-  return jwt.verify(token, secret!) as McpTokenClaims & { iat: number; exp: number }
+  // algorithms is pinned explicitly, not left to jsonwebtoken's default:
+  // without it, verify() accepts any algorithm the library supports keyed
+  // by this same secret, which is the standard "algorithm confusion" class
+  // of JWT vulnerability. Since this token is only ever HS256-signed by
+  // mintMcpToken above, verification must reject anything else.
+  return jwt.verify(token, secret!, { algorithms: ['HS256'] }) as McpTokenClaims & {
+    iat: number
+    exp: number
+  }
 }
