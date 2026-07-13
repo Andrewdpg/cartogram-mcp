@@ -27,6 +27,13 @@ describe('updateDiagramTool', () => {
     expect(result).toEqual({ conflict: true })
   })
 
+  it('throws (does not report a conflict) for a real error unrelated to version staleness', async () => {
+    single.mockResolvedValue({ data: null, error: { code: '57014', message: 'statement timeout' } })
+    await expect(
+      updateDiagramTool(claims, 'proj-1', 'deployment', { nodes: [], edges: [] }, 4)
+    ).rejects.toEqual({ code: '57014', message: 'statement timeout' })
+  })
+
   it('rejects when the token lacks write scope', async () => {
     const readOnly: McpTokenClaims = { userId: 'u1', scopes: ['read'], supabaseAccessToken: 'tok' }
     await expect(

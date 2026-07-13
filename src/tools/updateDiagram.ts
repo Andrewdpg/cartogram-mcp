@@ -30,8 +30,16 @@ export async function updateDiagramTool(
     .select('version')
     .single()
 
-  if (error || !data) {
+  // PGRST116 ("no rows returned") is what PostgREST reports both for a
+  // genuinely stale version and for an RLS-blocked update — there's no
+  // SQL-level way to tell them apart, and both are legitimately "you
+  // couldn't write this row right now." Any OTHER error must not be
+  // reported as a conflict: an agent seeing { conflict: true } is expected
+  // to re-read and retry, which is the wrong response to a real failure
+  // (network error, unexpected Supabase error) and would hide it entirely.
+  if (error?.code === 'PGRST116') {
     return { conflict: true }
   }
+  if (error) throw error
   return { version: data.version }
 }
