@@ -2,9 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
 import express from 'express'
 import { createOAuthRouter } from './oauth.js'
+import { markMcpSession } from './mcpSessions.js'
 
 vi.mock('./mcpToken', () => ({
   mintMcpToken: vi.fn(() => 'minted-mcp-token'),
+}))
+
+vi.mock('./mcpSessions', () => ({
+  markMcpSession: vi.fn().mockResolvedValue(undefined),
 }))
 
 describe('POST /oauth/token', () => {
@@ -52,5 +57,6 @@ describe('POST /oauth/token', () => {
     })
     expect(res.status).toBe(200)
     expect(res.body.access_token).toBe('minted-mcp-token')
+    expect(markMcpSession).toHaveBeenCalledWith(expect.any(String), 'placeholder-user-id')
   })
 })

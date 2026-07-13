@@ -24,14 +24,15 @@ beforeEach(() => {
 })
 
 describe('markMcpSession', () => {
-  it('upserts an mcp_sessions row for the given user with a future expiry', async () => {
+  it('upserts an mcp_sessions row keyed by session id, for the given user, with a future expiry', async () => {
     mockUpsert.mockResolvedValue({ error: null })
 
-    await markMcpSession('user-123')
+    await markMcpSession('session-abc', 'user-123')
 
     expect(mockFrom).toHaveBeenCalledWith('mcp_sessions')
     expect(mockUpsert).toHaveBeenCalledTimes(1)
     const [row] = mockUpsert.mock.calls[0]
+    expect(row.session_id).toBe('session-abc')
     expect(row.user_id).toBe('user-123')
     expect(new Date(row.expires_at).getTime()).toBeGreaterThan(Date.now())
   })
@@ -39,7 +40,7 @@ describe('markMcpSession', () => {
   it('throws when the upsert fails', async () => {
     mockUpsert.mockResolvedValue({ error: { message: 'boom' } })
 
-    await expect(markMcpSession('user-123')).rejects.toThrow('boom')
+    await expect(markMcpSession('session-abc', 'user-123')).rejects.toThrow('boom')
   })
 
   it('constructs its Supabase client with the service_role key, never the anon key', () => {

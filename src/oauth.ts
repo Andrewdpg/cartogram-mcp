@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import crypto from 'node:crypto'
+import jwt from 'jsonwebtoken'
 import { mintMcpToken } from './mcpToken.js'
+import { markMcpSession } from './mcpSessions.js'
 
 interface PendingAuthorization {
   codeChallenge: string
@@ -40,12 +42,23 @@ export function createOAuthRouter(): Router {
     >
 
     const code = crypto.randomBytes(24).toString('base64url')
+    // Placeholder session — see the design note above. Shaped as a decodable
+    // JWT (not a bare string) carrying sub/session_id, matching what a real
+    // Supabase access token looks like, so the /token handler's
+    // jwt.decode(...).session_id read below exercises the real code path
+    // end to end even before real session wiring lands.
+    const placeholderUserId = 'placeholder-user-id'
+    const placeholderSupabaseAccessToken = jwt.sign(
+      { sub: placeholderUserId, session_id: crypto.randomUUID() },
+      'placeholder-unsigned-dev-only',
+      { noTimestamp: true }
+    )
     pendingCodes.set(code, {
       codeChallenge: code_challenge,
       codeChallengeMethod: (code_challenge_method as 'plain' | 'S256') ?? 'S256',
       scopes: (scope ?? 'read').split(' ') as ('read' | 'write' | 'admin')[],
-      supabaseAccessToken: 'placeholder-supabase-session-token',
-      userId: 'placeholder-user-id',
+      supabaseAccessToken: placeholderSupabaseAccessToken,
+      userId: placeholderUserId,
       redirectUri: redirect_uri,
       createdAt: Date.now(),
     })
@@ -56,7 +69,7 @@ export function createOAuthRouter(): Router {
     res.redirect(location.toString())
   })
 
-  router.post('/token', (req, res) => {
+  router.post('/token', async (req, res) => {
     const { grant_type, code, code_verifier } = req.body as Record<string, string>
 
     if (grant_type !== 'authorization_code') {
@@ -72,6 +85,21 @@ export function createOAuthRouter(): Router {
     if (!verifyPkce(code_verifier, pending.codeChallenge, pending.codeChallengeMethod)) {
       return res.status(400).json({ error: 'invalid_grant' })
     }
+
+    // Marks the specific Supabase auth.sessions row backing
+    // pending.supabaseAccessToken as MCP-originated, so the
+    // custom_access_token_hook Postgres function (see the mcp_sessions
+    // migration) stamps is_mcp_request: true only on tokens re-issued for
+    // THIS session — which is what the mcp_project_grants RLS policies
+    // actually check. Decoded (not verified) here: the token's signature
+    // was already established by Supabase Auth when this session was
+    // created; this server only needs to read its session_id claim, not
+    // authorize anything based on it.
+    const supabaseClaims = jwt.decode(pending.supabaseAccessToken) as { session_id?: string } | null
+    if (!supabaseClaims?.session_id) {
+      return res.status(400).json({ error: 'invalid_grant' })
+    }
+    await markMcpSession(supabaseClaims.session_id, pending.userId)
 
     const accessToken = mintMcpToken({
       userId: pending.userId,
