@@ -1,25 +1,30 @@
-# architecture-map MCP server
+# Cartogram MCP server
+
+> **Status: early-stage, active development.** Issues and PRs are welcome.
 
 Remote MCP server (Streamable HTTP + OAuth 2.1/PKCE) that lets an
 MCP-compatible AI agent (e.g. Claude Code) read and write a user's
-architecture-map projects and diagrams, subject to the same per-project
+Cartogram projects and diagrams, subject to the same per-project
 access grants and read/write/admin scopes the user controls from
 `/settings/integrations` in the web app.
+
+Production instance: `https://mcp.cartogram.andrewpg.me` — point any
+MCP-compatible client at that URL, it self-registers via Dynamic Client
+Registration (RFC 7591) and walks the OAuth consent screen from there.
 
 ## Local development
 
 Requires the Supabase backend running — see the sibling
-`architecture-map-supabase` repo:
+[`cartogram-supabase`](https://github.com/Andrewdpg/cartogram-supabase) repo:
 
-    supabase start   # from the architecture-map-supabase repo
+    supabase start   # from the cartogram-supabase repo
 
 Then, from this repo:
 
     cp .env.example .env
     # fill in SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY
     # from `supabase start`'s output, a random MCP_JWT_SIGNING_SECRET, and
-    # MCP_OAUTH_ALLOWED_REDIRECT_URIS (the exact redirect_uri your MCP
-    # client will use — required, /oauth/authorize rejects anything else)
+    # MCP_FRONTEND_URL (where the frontend's OAuth consent screen lives)
     npm install
     npm run dev
 
@@ -32,8 +37,9 @@ Then, from this repo:
 | Tool | Scope | Notes |
 |---|---|---|
 | `list_projects` | read | |
+| `list_diagrams` | read | returns diagrams no other diagram's `childDiagram` reaches — the ones a picker/agent needs a direct slug for |
 | `get_diagram` | read | |
-| `create_project` | write | auto-grants MCP access to the created project |
+| `create_project` | write | auto-grants MCP access to the created project; seeds an empty `deployment` diagram |
 | `create_diagram` | write | |
 | `update_diagram` | write | optimistic-locking: pass the `version` from a prior `get_diagram` call; a mismatch returns `{ conflict: true }` |
 | `validate_diagram` | none | dry-run shape validation, no DB write |
@@ -41,12 +47,8 @@ Then, from this repo:
 
 ## Known limitations
 
-- `/oauth/authorize`'s session check is a placeholder — wiring it to a real
-  Supabase session via the web app's login flow is a deployment-integration
-  step not yet implemented. See
-  `docs/superpowers/plans/2026-07-12-mcp-server.md` in the
-  `architecture-map-front` repo (Task 4's follow-up note) for the original
-  design context.
 - `delete_project` and `remove_collaborator` are intentionally not exposed
   (destructive, low-value for the "document a repo" flow this is built
   around — add later if there's real demand).
+- `childDiagram` slugs are not validated against existing diagrams at write
+  time — a typo creates a dangling reference instead of failing fast.
