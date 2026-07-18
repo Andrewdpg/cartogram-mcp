@@ -1,8 +1,11 @@
 {
-  "name": "cartogram-mcp",
+  "name": "waycairn",
   "version": "1.0.0",
   "description": "Remote MCP server for Cartogram — OAuth 2.1/PKCE-authenticated tools for AI agents to read and write architecture diagrams.",
   "main": "index.js",
+  "bin": {
+    "waycairn-mcp": "bin/waycairn-mcp.ts"
+  },
   "scripts": {
     "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "tsc",
