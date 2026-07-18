@@ -33,6 +33,7 @@ export interface DiagramNodeData {
   attributes?: string[]
   operations?: string[]
   sourceRefs?: string[]
+  externalRef?: { repo: string; artifactId: string }
 }
 
 export interface DiagramEdgeData {
@@ -67,6 +68,7 @@ function isStringArray(value: unknown): value is string[] {
 const NODE_FIELDS = new Set([
   'id', 'label', 'kind', 'childDiagram', 'x', 'y', 'responsibility',
   'techStack', 'dataOwned', 'gotchas', 'attributes', 'operations', 'sourceRefs',
+  'externalRef',
 ])
 const EDGE_FIELDS = new Set(['from', 'to', 'label', 'relationship', 'order', 'async', 'condition'])
 
@@ -133,6 +135,21 @@ export function validateDiagramShape(raw: unknown, diagramId: string): Diagram {
     for (const field of ['techStack', 'gotchas', 'attributes', 'operations', 'sourceRefs'] as const) {
       if (node[field] !== undefined && !isStringArray(node[field])) {
         throw new InvalidDiagramError(diagramId, `node "${node.id}" has invalid "${field}" (must be string[])`)
+      }
+    }
+    if (node.externalRef !== undefined) {
+      const ref = node.externalRef as Record<string, unknown> | null
+      const isValidRef =
+        typeof ref === 'object' &&
+        ref !== null &&
+        typeof ref.repo === 'string' &&
+        typeof ref.artifactId === 'string' &&
+        Object.keys(ref).length === 2
+      if (!isValidRef) {
+        throw new InvalidDiagramError(
+          diagramId,
+          `node "${node.id}" has invalid "externalRef" (must be exactly { repo: string, artifactId: string })`
+        )
       }
     }
     assertNoUnknownFields(node, NODE_FIELDS, diagramId, `node "${node.id}"`)

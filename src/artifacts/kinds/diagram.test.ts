@@ -30,4 +30,65 @@ describe('validateDiagramArtifactData', () => {
       )
     ).toThrow(/unknown node "ghost"/)
   })
+
+  it('accepts a node with a valid externalRef', () => {
+    expect(() =>
+      validateDiagramArtifactData(
+        {
+          nodes: [
+            {
+              id: 'payment-service',
+              label: 'Payment Service',
+              kind: 'external',
+              externalRef: { repo: 'bitbucket.org/org/payment-service', artifactId: 'deployment' },
+            },
+          ],
+          edges: [],
+        },
+        'auth-service'
+      )
+    ).not.toThrow()
+  })
+
+  it('rejects a node whose externalRef.repo is not a string', () => {
+    expect(() =>
+      validateDiagramArtifactData(
+        {
+          nodes: [
+            { id: 'a', label: 'A', kind: 'external', externalRef: { repo: 123, artifactId: 'deployment' } },
+          ],
+          edges: [],
+        },
+        'auth-service'
+      )
+    ).toThrow(/invalid "externalRef"/)
+  })
+
+  it('rejects a node whose externalRef is missing artifactId', () => {
+    expect(() =>
+      validateDiagramArtifactData(
+        { nodes: [{ id: 'a', label: 'A', kind: 'external', externalRef: { repo: 'host/org/repo' } }], edges: [] },
+        'auth-service'
+      )
+    ).toThrow(/invalid "externalRef"/)
+  })
+
+  it('does not resolve or validate externalRef.repo against anything — a nonexistent repoId is still shape-valid', () => {
+    expect(() =>
+      validateDiagramArtifactData(
+        {
+          nodes: [
+            {
+              id: 'a',
+              label: 'A',
+              kind: 'external',
+              externalRef: { repo: 'this-repo-id-does-not-exist-anywhere', artifactId: 'whatever' },
+            },
+          ],
+          edges: [],
+        },
+        'auth-service'
+      )
+    ).not.toThrow()
+  })
 })
