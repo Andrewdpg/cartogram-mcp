@@ -67,16 +67,18 @@ interface ClaudeSettings {
   hooks?: { Stop?: Array<{ hooks: Array<{ type: string; command: string }> }> }
 }
 
+const NUDGE_COMMAND = `echo '${WAYCAIRN_NUDGE}' >&2`
+
 function installSessionHook(repoRoot: string): InstallResult {
   const path = join(repoRoot, '.claude', 'settings.json')
   const settings = readJsonFile(path) as ClaudeSettings
   settings.hooks = settings.hooks ?? {}
   settings.hooks.Stop = settings.hooks.Stop ?? []
   const alreadyPresent = settings.hooks.Stop.some((matcher) =>
-    matcher.hooks.some((hook) => hook.command === WAYCAIRN_NUDGE)
+    matcher.hooks.some((hook) => hook.command === NUDGE_COMMAND)
   )
   if (!alreadyPresent) {
-    settings.hooks.Stop.push({ hooks: [{ type: 'command', command: WAYCAIRN_NUDGE }] })
+    settings.hooks.Stop.push({ hooks: [{ type: 'command', command: NUDGE_COMMAND }] })
   }
   writeJsonFile(path, settings as unknown as Record<string, unknown>)
   return { installed: true, detail: `wrote ${path}` }

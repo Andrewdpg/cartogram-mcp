@@ -70,6 +70,7 @@ describe('codexInstaller.installSessionHook', () => {
     const hooks = readJsonFile(join(repoRoot, '.codex', 'hooks.json')) as {
       hooks: { Stop: Array<{ hooks: Array<{ command: string }> }> }
     }
+    expect(hooks.hooks.Stop[0].hooks[0].command).toMatch(/^echo /)
     expect(hooks.hooks.Stop[0].hooks[0].command).toMatch(/waycairn/)
   })
 

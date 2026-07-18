@@ -29,16 +29,18 @@ interface CodexHooks {
   hooks?: { Stop?: Array<{ hooks: Array<{ type: string; command: string }> }> }
 }
 
+const NUDGE_COMMAND = `echo '${WAYCAIRN_NUDGE}' >&2`
+
 function installSessionHook(repoRoot: string): InstallResult {
   const path = join(repoRoot, '.codex', 'hooks.json')
   const hooksFile = readJsonFile(path) as CodexHooks
   hooksFile.hooks = hooksFile.hooks ?? {}
   hooksFile.hooks.Stop = hooksFile.hooks.Stop ?? []
   const alreadyPresent = hooksFile.hooks.Stop.some((matcher) =>
-    matcher.hooks.some((hook) => hook.command === WAYCAIRN_NUDGE)
+    matcher.hooks.some((hook) => hook.command === NUDGE_COMMAND)
   )
   if (!alreadyPresent) {
-    hooksFile.hooks.Stop.push({ hooks: [{ type: 'command', command: WAYCAIRN_NUDGE }] })
+    hooksFile.hooks.Stop.push({ hooks: [{ type: 'command', command: NUDGE_COMMAND }] })
   }
   writeJsonFile(path, hooksFile as unknown as Record<string, unknown>)
   return {

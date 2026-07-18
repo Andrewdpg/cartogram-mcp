@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { runInstallers } from './runInstallers.js'
+import type { AgentInstallReport } from './runInstallers.js'
 import type { AgentInstaller } from './types.js'
 
 function fakeInstaller(overrides: Partial<AgentInstaller> = {}): AgentInstaller {
@@ -38,5 +39,36 @@ describe('runInstallers', () => {
         sessionHook: { installed: true, detail: 'hook done' },
       },
     ])
+  })
+
+  it('isolates a throwing installMcpServer without skipping the other methods or later installers', () => {
+    const throwing = fakeInstaller({
+      name: 'throwing-agent',
+      installMcpServer: vi.fn(() => {
+        throw new Error('invalid JSON')
+      }),
+    })
+    const healthy = fakeInstaller({ name: 'healthy-agent' })
+
+    let reports: AgentInstallReport[] = []
+    expect(() => {
+      reports = runInstallers('/repo', [throwing, healthy])
+    }).not.toThrow()
+
+    expect(reports[0]).toEqual({
+      agent: 'throwing-agent',
+      mcpServer: { installed: false, detail: expect.stringContaining('invalid JSON') },
+      skill: { installed: true, detail: 'skill done' },
+      sessionHook: { installed: true, detail: 'hook done' },
+    })
+    expect(throwing.installSkill).toHaveBeenCalledWith('/repo')
+    expect(throwing.installSessionHook).toHaveBeenCalledWith('/repo')
+
+    expect(reports[1]).toEqual({
+      agent: 'healthy-agent',
+      mcpServer: { installed: true, detail: 'mcp done' },
+      skill: { installed: true, detail: 'skill done' },
+      sessionHook: { installed: true, detail: 'hook done' },
+    })
   })
 })

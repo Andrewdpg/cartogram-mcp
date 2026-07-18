@@ -69,6 +69,7 @@ describe('claudeCodeInstaller.installSessionHook', () => {
     const settings = readJsonFile(join(repoRoot, '.claude', 'settings.json')) as {
       hooks: { Stop: Array<{ hooks: Array<{ command: string }> }> }
     }
+    expect(settings.hooks.Stop[0].hooks[0].command).toMatch(/^echo /)
     expect(settings.hooks.Stop[0].hooks[0].command).toMatch(/waycairn/)
   })
 
