@@ -7,7 +7,12 @@ import { runInit } from '../src/commands/init.js'
 const subcommand = process.argv[2]
 
 if (subcommand === 'init') {
-  runInit(process.cwd())
+  try {
+    runInit(process.cwd())
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err)
+    process.exit(1)
+  }
 } else if (subcommand === 'mcp') {
   const server = createLocalMcpServer(process.cwd())
   const transport = new StdioServerTransport()
