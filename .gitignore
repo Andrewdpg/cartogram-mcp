@@ -17,3 +17,13 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+
+# local docs/specs/plans, not committed
+docs/superpowers
+
+# subagent-driven-development scratch (briefs, reports, diffs, ledger)
+.superpowers/
+
+# waycairn's derived sqlite index — a binary git can't merge; the .json
+# artifact files under .waycairn/<kind>/ are the versioned source of truth
+.waycairn/index.sqlite
