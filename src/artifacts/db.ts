@@ -59,7 +59,7 @@ export function getIndexRow(db: DatabaseSync, kind: string, id: string): IndexRo
 }
 
 export function listIndexRows(db: DatabaseSync, kind: string): IndexRow[] {
-  const rows = db.prepare(`SELECT * FROM artifacts WHERE kind = ? ORDER BY id`).all(kind) as ArtifactRow[]
+  const rows = db.prepare(`SELECT * FROM artifacts WHERE kind = ? ORDER BY id`).all(kind) as unknown as ArtifactRow[]
   return rows.map(toIndexRow)
 }
 
