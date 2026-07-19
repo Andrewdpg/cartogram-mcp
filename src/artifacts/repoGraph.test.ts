@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, existsSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveRepoId, buildRepoGraph } from './repoGraph.js'
 import { upsertArtifactTool } from '../tools/upsertArtifact.js'
 import { upsertRegistryEntry } from '../registry.js'
+import { openIndexDb, upsertIndexRow } from './db.js'
+import { artifactFilePath, writeArtifactFile } from './store.js'
 
 let root: string
 let registryPath: string
@@ -69,11 +71,13 @@ describe('buildRepoGraph', () => {
     expect(graph.deploymentOwner('host/org/a')).toBeNull()
   })
 
-  it('skips a registered repo whose path no longer exists, without throwing', () => {
-    upsertRegistryEntry(registryPath, 'host/org/ghost', { path: join(root, 'does-not-exist'), name: 'ghost' })
+  it('skips a registered repo whose path no longer exists, without throwing or creating phantom directories', () => {
+    const ghostPath = join(root, 'does-not-exist')
+    upsertRegistryEntry(registryPath, 'host/org/ghost', { path: ghostPath, name: 'ghost' })
     upsertArtifactTool(join(repoA, '.waycairn'), 'diagram', 'deployment', { nodes: [], edges: [] })
     expect(() => buildRepoGraph(registryPath)).not.toThrow()
     expect(buildRepoGraph(registryPath).deploymentOwner('host/org/a')).toBe('host/org/a')
+    expect(existsSync(join(ghostPath, '.waycairn'))).toBe(false)
   })
 
   it('folds in-progress write data (extra) not yet on disk', () => {
@@ -85,5 +89,51 @@ describe('buildRepoGraph', () => {
     }
     const graph = buildRepoGraph(registryPath, extra)
     expect(graph.componentOf('host/org/a')).toEqual(new Set(['host/org/a', 'host/org/b']))
+  })
+
+  it('discards all rows from a repo when one row has malformed JSON, instead of partially applying it', () => {
+    const waycairnDir = join(repoA, '.waycairn')
+    // Valid row, contributes an edge to host/org/b.
+    upsertArtifactTool(waycairnDir, 'diagram', 'components', {
+      nodes: [{ id: 'b', label: 'B', kind: 'external', externalRef: { repo: 'host/org/b', artifactId: 'components' } }],
+      edges: [],
+    })
+    // Second on-disk diagram, but its indexed dataJson is corrupted directly in
+    // the db. Its indexedMtimeMs is set to match the file's actual mtime so
+    // reindexKind treats it as already-fresh and does not overwrite it by
+    // re-reading (and re-stringifying) the file's valid JSON content.
+    writeArtifactFile(waycairnDir, { id: 'broken', kind: 'diagram', updatedAt: new Date().toISOString(), data: { nodes: [], edges: [] } })
+    const brokenMtimeMs = statSync(artifactFilePath(waycairnDir, 'diagram', 'broken')).mtimeMs
+    const db = openIndexDb(waycairnDir)
+    try {
+      upsertIndexRow(db, {
+        kind: 'diagram',
+        id: 'broken',
+        dataJson: '{ not valid json',
+        updatedAt: new Date().toISOString(),
+        indexedMtimeMs: brokenMtimeMs,
+      })
+    } finally {
+      db.close()
+    }
+
+    const graph = buildRepoGraph(registryPath)
+    expect(graph.componentOf('host/org/a')).toEqual(new Set(['host/org/a']))
+  })
+
+  it('replaces the stale on-disk edge for the same (repoId, id) with extra, instead of unioning it', () => {
+    upsertArtifactTool(join(repoA, '.waycairn'), 'diagram', 'deployment', {
+      nodes: [{ id: 'b', label: 'B', kind: 'external', externalRef: { repo: 'host/org/b', artifactId: 'components' } }],
+      edges: [],
+    })
+    upsertArtifactTool(join(repoB, '.waycairn'), 'diagram', 'components', { nodes: [], edges: [] })
+
+    const extra = {
+      repoId: 'host/org/a',
+      id: 'deployment',
+      data: { nodes: [], edges: [] }, // edit removes the externalRef to host/org/b
+    }
+    const graph = buildRepoGraph(registryPath, extra)
+    expect(graph.componentOf('host/org/a')).toEqual(new Set(['host/org/a']))
   })
 })

@@ -1,4 +1,5 @@
 import { resolve, join } from 'node:path'
+import { existsSync } from 'node:fs'
 import { readRegistry } from '../registry.js'
 import { openIndexDb, listIndexRows } from './db.js'
 import { reindexKind } from './sync.js'
@@ -35,23 +36,39 @@ export function buildRepoGraph(
     edges.get(b)!.add(a)
   }
 
-  function ingest(repoId: string, diagramId: string, data: unknown): void {
-    if (diagramId === 'deployment') hasDeployment.add(repoId)
+  // Collects one repo's contributions without touching shared state, so a
+  // partial/corrupt repo can be discarded atomically instead of leaking edges.
+  function collect(repoId: string, diagramId: string, data: unknown, into: { edges: [string, string][]; hasDeployment: boolean }): void {
+    if (diagramId === 'deployment') into.hasDeployment = true
     for (const node of (data as DataLike)?.nodes ?? []) {
       const refRepo = node.externalRef?.repo
-      if (typeof refRepo === 'string') addEdge(repoId, refRepo)
+      if (typeof refRepo === 'string') into.edges.push([repoId, refRepo])
     }
+  }
+
+  function ingest(repoId: string, diagramId: string, data: unknown): void {
+    const collected = { edges: [] as [string, string][], hasDeployment: false }
+    collect(repoId, diagramId, data, collected)
+    if (collected.hasDeployment) hasDeployment.add(repoId)
+    for (const [a, b] of collected.edges) addEdge(a, b)
   }
 
   for (const [repoId, entry] of Object.entries(registry)) {
     const waycairnDir = join(entry.path, '.waycairn')
+    if (!existsSync(waycairnDir)) continue // registry entry's repo no longer exists on disk — skip without writing anything
+
     try {
       const db = openIndexDb(waycairnDir)
       try {
         reindexKind(waycairnDir, db, 'diagram')
+        const collected = { edges: [] as [string, string][], hasDeployment: false }
         for (const row of listIndexRows(db, 'diagram')) {
-          ingest(repoId, row.id, JSON.parse(row.dataJson))
+          if (extra && repoId === extra.repoId && row.id === extra.id) continue // superseded below by extra.data
+          collect(repoId, row.id, JSON.parse(row.dataJson), collected)
         }
+        // Only merge into shared state once the whole repo parsed cleanly.
+        if (collected.hasDeployment) hasDeployment.add(repoId)
+        for (const [a, b] of collected.edges) addEdge(a, b)
       } finally {
         db.close()
       }
