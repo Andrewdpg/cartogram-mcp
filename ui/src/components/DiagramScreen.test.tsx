@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { DiagramScreen } from './DiagramScreen'
+import { BackStackProvider } from '../lib/backStack'
 import * as apiClient from '../lib/apiClient'
 import type { ArtifactRecord } from '../lib/apiClient'
 import type { Diagram } from '../lib/types'
@@ -59,6 +60,21 @@ const withExternalRef: Diagram = {
   edges: [],
 }
 
+const nestedBranch: Diagram = {
+  id: 'nested-branch',
+  title: 'Nested Branch',
+  nodes: [
+    { id: 'payment', label: 'Payment Service', kind: 'external', externalRef: { repo: 'host/org/other-repo', artifactId: 'other-root' } },
+  ],
+  edges: [],
+}
+const nestedRoot: Diagram = {
+  id: 'nested-root',
+  title: 'Nested Root',
+  nodes: [{ id: 'branch', label: 'Branch', kind: 'system', childDiagram: 'nested-branch' }],
+  edges: [],
+}
+
 const records: Record<string, Diagram> = {
   deployment,
   'api-internals': apiInternals,
@@ -66,14 +82,18 @@ const records: Record<string, Diagram> = {
   'untitled-child': untitledChild,
   'has-external': withExternalRef,
   'other-root': externalTarget,
+  'nested-root': nestedRoot,
+  'nested-branch': nestedBranch,
 }
 
 function renderScreen(initialPath: string) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <Routes>
-        <Route path="/repos/:repoId/diagrams/:diagramId/*" element={<DiagramScreen />} />
-      </Routes>
+      <BackStackProvider>
+        <Routes>
+          <Route path="/repos/:repoId/diagrams/:diagramId/*" element={<DiagramScreen />} />
+        </Routes>
+      </BackStackProvider>
     </MemoryRouter>
   )
 }
@@ -134,5 +154,21 @@ describe('DiagramScreen', () => {
     await waitFor(() =>
       expect(apiClient.fetchArtifact).toHaveBeenCalledWith('host/org/other-repo', 'other-root', 'diagram')
     )
+  })
+
+  it('shows a back-to chip after an externalRef jump from a drilled-down diagram, and returns exactly there', async () => {
+    renderScreen('/repos/host%2Forg%2Frepo/diagrams/nested-root/branch')
+    await screen.findByRole('button', { name: 'Nested Branch' })
+
+    await userEvent.click(await screen.findByText('Payment Service'))
+    await waitFor(() =>
+      expect(apiClient.fetchArtifact).toHaveBeenCalledWith('host/org/other-repo', 'other-root', 'diagram')
+    )
+
+    const chip = await screen.findByRole('button', { name: /host\/org\/repo/ })
+    await userEvent.click(chip)
+
+    expect(await screen.findByRole('button', { name: 'Nested Branch' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /host\/org\/repo/ })).toBeNull()
   })
 })

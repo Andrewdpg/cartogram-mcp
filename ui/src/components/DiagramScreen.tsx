@@ -8,6 +8,8 @@ import { layoutDiagram } from '../lib/autoLayout'
 import { DiagramCanvas } from './DiagramCanvas'
 import { Breadcrumb } from './Breadcrumb'
 import { SidePanel, type Tab } from './SidePanel'
+import { BackToRepoChip } from './BackToRepoChip'
+import { useBackStack } from '../lib/backStack'
 
 type Resolution =
   | { status: 'loading' }
@@ -25,6 +27,7 @@ export function DiagramScreen() {
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('legend')
   const [resolution, setResolution] = useState<Resolution>({ status: 'loading' })
+  const { push } = useBackStack()
 
   useEffect(() => {
     if (!repoId || !diagramId) return
@@ -79,6 +82,7 @@ export function DiagramScreen() {
   function handleNodeClick(nodeId: string) {
     const node = current.nodes.find((n: DiagramNodeData) => n.id === nodeId)
     if (node?.externalRef) {
+      push({ repoId: repoId!, diagramId: diagramId!, segments })
       navigate(
         `/repos/${encodeURIComponent(node.externalRef.repo)}/diagrams/${encodeURIComponent(node.externalRef.artifactId)}`
       )
@@ -103,8 +107,9 @@ export function DiagramScreen() {
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, padding: 12, gap: 12, boxSizing: 'border-box' }}>
       <div style={{ flex: 1, display: 'flex', gap: 12, minHeight: 0 }}>
         <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-          <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 5 }}>
+          <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 5, display: 'flex', gap: 8, alignItems: 'center' }}>
             <Breadcrumb labels={labels} onNavigate={handleBreadcrumbNavigate} />
+            <BackToRepoChip />
           </div>
           <DiagramCanvas
             nodes={positionedNodes}
