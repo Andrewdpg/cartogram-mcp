@@ -154,4 +154,29 @@ describe('createLocalMcpServer', () => {
     })
     expect(result.isError).toBe(true)
   })
+
+  it('upsert_artifact rejects a second deployment diagram connected via externalRef to an already-owned one', async () => {
+    const otherRoot = mkdtempSync(join(tmpdir(), 'waycairn-server-other-'))
+    try {
+      mkdirSync(join(cwd, '.git'))
+      upsertRegistryEntry(registryPath, 'host/org/this', { path: cwd, name: 'this' })
+      upsertRegistryEntry(registryPath, 'host/org/other', { path: otherRoot, name: 'other' })
+      upsertArtifactTool(join(otherRoot, '.waycairn'), 'diagram', 'deployment', { nodes: [], edges: [] })
+
+      const result = await client.callTool({
+        name: 'upsert_artifact',
+        arguments: {
+          kind: 'diagram',
+          id: 'deployment',
+          data: {
+            nodes: [{ id: 'x', label: 'X', kind: 'external', externalRef: { repo: 'host/org/other', artifactId: 'components' } }],
+            edges: [],
+          },
+        },
+      })
+      expect(result.isError).toBe(true)
+    } finally {
+      rmSync(otherRoot, { recursive: true, force: true })
+    }
+  })
 })

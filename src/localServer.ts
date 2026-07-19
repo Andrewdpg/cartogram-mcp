@@ -123,7 +123,9 @@ export function createLocalMcpServer(
         .strict(),
     },
     async ({ kind, id, data, repoPath }) => ({
-      content: [{ type: 'text', text: JSON.stringify(upsertArtifactTool(resolveWaycairnDir(cwd, repoPath), kind, id, data)) }],
+      content: [
+        { type: 'text', text: JSON.stringify(upsertArtifactTool(resolveWaycairnDir(cwd, repoPath), kind, id, data, registryPath)) },
+      ],
     })
   )
 
