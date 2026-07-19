@@ -7,6 +7,7 @@ import * as apiClient from './lib/apiClient'
 describe('App', () => {
   beforeEach(() => {
     vi.spyOn(apiClient, 'fetchRepos').mockResolvedValue({ local: [], registered: {} })
+    vi.spyOn(apiClient, 'fetchRepoGraph').mockResolvedValue({ groups: [] })
     window.history.pushState({}, '', '/')
   })
 
