@@ -1,15 +1,12 @@
 {
   "name": "waycairn",
   "version": "1.0.0",
-  "description": "Remote MCP server for Cartogram — OAuth 2.1/PKCE-authenticated tools for AI agents to read and write architecture diagrams.",
-  "main": "index.js",
+  "description": "Local-first MCP server for documenting a codebase as you work in it — architecture diagrams and notes stored in the repo, versioned in git, no cloud backend.",
   "bin": {
     "waycairn": "bin/waycairn.ts"
   },
   "scripts": {
-    "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "tsc",
-    "start": "node --env-file-if-exists=.env dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "npm run typecheck && vitest run"
   },
@@ -19,18 +16,11 @@
   "type": "module",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@supabase/supabase-js": "^2.110.2",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
     "smol-toml": "^1.7.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.1.1",
-    "@types/supertest": "^7.2.0",
-    "supertest": "^7.2.2",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
