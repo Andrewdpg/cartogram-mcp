@@ -47,9 +47,21 @@ describe('BackToRepoChip', () => {
   })
 
   it('clicking navigates to the stored location and pops the entry', async () => {
-    renderChip(true)
+    render(
+      <MemoryRouter initialEntries={['/repos/host%2Forg%2Fb/diagrams/root']}>
+        <BackStackProvider>
+          <Seeded>
+            <Routes>
+              <Route path="*" element={<BackToRepoChip />} />
+              <Route path="/repos/host%2Forg%2Fa/diagrams/root/x" element={<div>Landed</div>} />
+            </Routes>
+          </Seeded>
+        </BackStackProvider>
+      </MemoryRouter>
+    )
     const button = await screen.findByRole('button', { name: /host\/org\/a/ })
     await userEvent.click(button)
     expect(screen.queryByRole('button')).toBeNull()
+    expect(await screen.findByText('Landed')).toBeInTheDocument()
   })
 })
