@@ -41,6 +41,31 @@ exposing \`list_artifacts\`, \`get_artifact\`, \`upsert_artifact\`,
 Do not invent a new component or diagram just to log a note — only update
 an artifact that already exists and genuinely describes what you touched.
 If nothing documented was affected, don't force an update.
+
+## Linking to another repo's diagram
+
+If this session can see sibling repos (a parent-folder workspace, or a
+repo registered via \`waycairn init\` on this machine), a diagram node can
+drill into another repo's diagram with:
+
+\`\`\`json
+{ "id": "some-service", "kind": "external", "externalRef": { "repo": "<repoId from list_repos>", "artifactId": "<the target diagram's id>" } }
+\`\`\`
+
+Never use \`childDiagram\` for this — it only resolves within the SAME
+repo's own \`.waycairn\` store, and a cross-repo \`childDiagram\` id can
+never be found. Call \`list_repos\` to get the exact registered \`repoId\`
+string, and \`list_artifacts\`/\`get_artifact\` against that \`repoId\` to
+confirm the target \`artifactId\` actually exists before writing the
+reference — \`upsert_artifact\` validates shape, not that the target
+exists.
+
+A diagram with id \`"deployment"\` is a system-level root: \`upsert_artifact\`
+rejects it if another repo in the same cross-repo dependency graph already
+has one, or if any diagram (including this one) tries to make
+\`"deployment"\` itself a \`childDiagram\`/\`externalRef\` target. Only one
+\`"deployment"\` diagram per connected set of repos, and it's always an
+entry point, never a destination.
 `
 
 export function detectClaudeCode(homeDir: string = homedir()): boolean {

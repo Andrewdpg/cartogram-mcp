@@ -65,9 +65,20 @@ open.
 
 A diagram node can reference another repo's artifact via
 `externalRef: { repo: "<repoId>", artifactId: "<id>" }` — validated for
-shape only when written (same as `childDiagram`'s existing behavior: a
-typo creates a dangling reference instead of failing fast), resolved later
-by whoever reads it, via `get_artifact`'s `repoId` parameter.
+shape when written (same as `childDiagram`'s existing behavior: a typo in
+`artifactId` creates a dangling reference instead of failing fast, since
+resolving it means reaching into a different repo's store), resolved later
+by whoever reads it, via `get_artifact`'s `repoId` parameter. The waycairn
+UI's diagram canvas follows `externalRef` nodes with a real click-through
+into the other repo's diagram.
+
+A diagram with id `"deployment"` is treated as a system-level root: writing
+one is rejected if (a) any node — in this diagram or another — would make
+"deployment" a child (`childDiagram`/`externalRef.artifactId` pointing at
+it), or (b) another repo already owns a "deployment" diagram within the
+same cross-repo dependency graph (repos connected transitively via
+`externalRef`). Only one "deployment" diagram is allowed per connected set
+of repos, and it's always a drill-down entry point, never a destination.
 
 ## CLI
 
@@ -84,8 +95,10 @@ no auth, so it never listens on the network) at
 `http://localhost:4317` (override with `WAYCAIRN_UI_PORT`). It serves a
 picker over every repo registered via `waycairn init`, a searchable list
 of each repo's root diagrams, and the diagram canvas itself with
-drill-down through `childDiagram` links. Read-only in this first version —
-diagrams are still written by an agent via the MCP tools, not from the UI.
+drill-down through `childDiagram` links (same repo) and `externalRef`
+links (jumps to another registered repo's diagram tree). Read-only in this
+first version — diagrams are still written by an agent via the MCP tools,
+not from the UI.
 
 ## Testing
 
@@ -102,5 +115,5 @@ diagrams are still written by an agent via the MCP tools, not from the UI.
   the reference later.
 - `waycairn ui` is read-only and only browses repos registered via
   `waycairn init` — a `local` (unregistered) repo isn't browsable from it
-  yet, and there's no click-through for `externalRef` into a different
-  repo's diagram.
+  yet, and `externalRef` click-through only works if the target repo is
+  registered too.
