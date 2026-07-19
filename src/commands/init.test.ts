@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, readFileSync, existsSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { runInit } from './init.js'
+import { runInit, runInitWorkspace } from './init.js'
 import { NoGitRemoteError } from '../repoId.js'
 
 let repoRoot: string
@@ -61,6 +61,51 @@ describe('runInit', () => {
       process.env.HOME = fakeHome
 
       runInit(repoRoot, registryPath)
+
+      expect(existsSync(join(repoRoot, '.mcp.json'))).toBe(true)
+      expect(existsSync(join(repoRoot, '.claude', 'skills', 'waycairn', 'SKILL.md'))).toBe(true)
+      expect(existsSync(join(repoRoot, '.claude', 'settings.json'))).toBe(true)
+      expect(existsSync(join(repoRoot, '.codex', 'config.toml'))).toBe(true)
+      expect(existsSync(join(repoRoot, '.codex', 'hooks.json'))).toBe(true)
+      expect(existsSync(join(repoRoot, 'opencode.json'))).toBe(true)
+      expect(existsSync(join(repoRoot, '.opencode', 'plugin', 'waycairn-nudge.ts'))).toBe(true)
+    } finally {
+      process.env.HOME = originalHome
+      rmSync(fakeHome, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('runInitWorkspace', () => {
+  it('does not require a git repo', () => {
+    const plainDir = mkdtempSync(join(tmpdir(), 'waycairn-init-workspace-plain-'))
+    try {
+      expect(() => runInitWorkspace(plainDir)).not.toThrow()
+    } finally {
+      rmSync(plainDir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not write to the registry', () => {
+    runInitWorkspace(repoRoot)
+    expect(existsSync(registryPath)).toBe(false)
+  })
+
+  it('does not write .gitignore', () => {
+    runInitWorkspace(repoRoot)
+    expect(existsSync(join(repoRoot, '.gitignore'))).toBe(false)
+  })
+
+  it('runs detected agent installers end-to-end against a fake HOME with all three agents present', () => {
+    const fakeHome = mkdtempSync(join(tmpdir(), 'waycairn-init-workspace-agents-home-'))
+    const originalHome = process.env.HOME
+    try {
+      mkdirSync(join(fakeHome, '.claude'), { recursive: true })
+      mkdirSync(join(fakeHome, '.codex'), { recursive: true })
+      mkdirSync(join(fakeHome, '.config', 'opencode'), { recursive: true })
+      process.env.HOME = fakeHome
+
+      runInitWorkspace(repoRoot)
 
       expect(existsSync(join(repoRoot, '.mcp.json'))).toBe(true)
       expect(existsSync(join(repoRoot, '.claude', 'skills', 'waycairn', 'SKILL.md'))).toBe(true)
