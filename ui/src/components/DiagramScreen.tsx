@@ -78,6 +78,12 @@ export function DiagramScreen() {
 
   function handleNodeClick(nodeId: string) {
     const node = current.nodes.find((n: DiagramNodeData) => n.id === nodeId)
+    if (node?.externalRef) {
+      navigate(
+        `/repos/${encodeURIComponent(node.externalRef.repo)}/diagrams/${encodeURIComponent(node.externalRef.artifactId)}`
+      )
+      return
+    }
     if (!node?.childDiagram) return
     navigate(`/repos/${encodeURIComponent(repoId!)}/diagrams/${encodeURIComponent(diagramId!)}/${[...segments, nodeId].join('/')}`)
   }

@@ -39,11 +39,33 @@ const rootWithUntitledChild: Diagram = {
   edges: [],
 }
 
+const externalTarget: Diagram = {
+  id: 'other-root',
+  title: 'Other Root',
+  nodes: [],
+  edges: [],
+}
+const withExternalRef: Diagram = {
+  id: 'has-external',
+  title: 'Has External',
+  nodes: [
+    {
+      id: 'payment',
+      label: 'Payment Service',
+      kind: 'external',
+      externalRef: { repo: 'host/org/other-repo', artifactId: 'other-root' },
+    },
+  ],
+  edges: [],
+}
+
 const records: Record<string, Diagram> = {
   deployment,
   'api-internals': apiInternals,
   'root-untitled': rootWithUntitledChild,
   'untitled-child': untitledChild,
+  'has-external': withExternalRef,
+  'other-root': externalTarget,
 }
 
 function renderScreen(initialPath: string) {
@@ -102,5 +124,15 @@ describe('DiagramScreen', () => {
     await screen.findByRole('button', { name: 'Home' })
     await userEvent.click(await screen.findByText('Child'))
     expect(await screen.findByRole('button', { name: 'untitled-child' })).toBeInTheDocument()
+  })
+
+  it('navigates to another repo when a node with externalRef is clicked', async () => {
+    renderScreen('/repos/host%2Forg%2Frepo/diagrams/has-external')
+    await screen.findByRole('button', { name: 'Home' })
+    await userEvent.click(await screen.findByText('Payment Service'))
+    expect(await screen.findByRole('button', { name: 'Home' })).toBeInTheDocument()
+    await waitFor(() =>
+      expect(apiClient.fetchArtifact).toHaveBeenCalledWith('host/org/other-repo', 'other-root', 'diagram')
+    )
   })
 })
