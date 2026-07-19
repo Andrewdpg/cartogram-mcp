@@ -1,16 +1,31 @@
 {
   "name": "waycairn",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Local-first MCP server for documenting a codebase as you work in it — architecture diagrams and notes stored in the repo, versioned in git, no cloud backend.",
   "bin": {
-    "waycairn": "bin/waycairn.ts"
+    "waycairn": "dist/bin/waycairn.js"
+  },
+  "files": [
+    "dist/src",
+    "dist/bin",
+    "ui/dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Andrewdpg/waycairn.git"
+  },
+  "homepage": "https://github.com/Andrewdpg/waycairn#readme",
+  "bugs": {
+    "url": "https://github.com/Andrewdpg/waycairn/issues"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
+    "build:ui": "npm run build --workspace=ui",
     "typecheck": "tsc --noEmit",
-    "test": "npm run typecheck && vitest run"
+    "test": "npm run typecheck && vitest run",
+    "prepublishOnly": "npm test && npm run build && npm run build:ui"
   },
-  "keywords": [],
+  "keywords": ["mcp", "architecture", "documentation", "diagrams"],
   "author": "",
   "license": "ISC",
   "workspaces": ["ui"],

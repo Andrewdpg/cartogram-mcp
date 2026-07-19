@@ -4,9 +4,22 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createLocalMcpServer } from '../src/localServer.js'
 import { runInit } from '../src/commands/init.js'
 import { createUiServer } from '../src/uiServer.js'
+import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+// This file runs from two different locations depending on how it's
+// invoked: directly as bin/waycairn.ts via tsx in dev, or as compiled
+// dist/bin/waycairn.js in a published package — one directory deeper
+// relative to ui/dist, which ships as a sibling of dist/. Trying the dev
+// layout first (and falling back to the published one) avoids needing two
+// separate code paths or a build-time constant.
+function resolveUiDistDir(scriptDir: string): string {
+  const devPath = join(scriptDir, '..', 'ui', 'dist')
+  if (existsSync(devPath)) return devPath
+  return join(scriptDir, '..', '..', 'ui', 'dist')
+}
 
 const subcommand = process.argv[2]
 
@@ -23,7 +36,7 @@ if (subcommand === 'init') {
   await server.connect(transport)
 } else if (subcommand === 'ui') {
   const registryPath = join(homedir(), '.waycairn', 'registry.json')
-  const staticDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'ui', 'dist')
+  const staticDir = resolveUiDistDir(dirname(fileURLToPath(import.meta.url)))
   const port = Number(process.env.WAYCAIRN_UI_PORT) || 4317
   const app = createUiServer(process.cwd(), registryPath, staticDir)
   // Bind to loopback only — this API has no auth and returns registered
