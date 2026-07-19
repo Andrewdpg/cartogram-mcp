@@ -71,4 +71,10 @@ describe('DiagramScreen', () => {
     renderScreen('/repos/host%2Forg%2Frepo/diagrams/missing')
     expect(await screen.findByText(/diagram not found/i)).toBeInTheDocument()
   })
+
+  it('renders an error message instead of staying blank when fetchArtifact rejects', async () => {
+    vi.spyOn(apiClient, 'fetchArtifact').mockRejectedValue(new Error('server error'))
+    renderScreen('/repos/host%2Forg%2Frepo/diagrams/deployment')
+    expect(await screen.findByText(/failed to load diagram/i)).toBeInTheDocument()
+  })
 })

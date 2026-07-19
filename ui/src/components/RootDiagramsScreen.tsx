@@ -22,11 +22,33 @@ export function RootDiagramsScreen() {
   const { repoId } = useParams<{ repoId: string }>()
   const [artifacts, setArtifacts] = useState<ArtifactRecord[] | null>(null)
   const [query, setQuery] = useState('')
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     if (!repoId) return
-    fetchArtifacts(repoId, 'diagram').then(setArtifacts)
+    fetchArtifacts(repoId, 'diagram')
+      .then(setArtifacts)
+      .catch(() => setError(true))
   }, [repoId])
+
+  if (error) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: 1,
+          minHeight: 0,
+          gap: 12,
+          padding: 40,
+        }}
+      >
+        <span style={{ fontSize: 15, fontWeight: 600 }}>Failed to load diagrams</span>
+      </div>
+    )
+  }
 
   if (!artifacts) return null
 

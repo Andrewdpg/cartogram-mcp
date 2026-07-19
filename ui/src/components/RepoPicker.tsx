@@ -4,10 +4,32 @@ import { fetchRepos, type ReposResponse } from '../lib/apiClient'
 
 export function RepoPicker() {
   const [repos, setRepos] = useState<ReposResponse | null>(null)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
-    fetchRepos().then(setRepos)
+    fetchRepos()
+      .then(setRepos)
+      .catch(() => setError(true))
   }, [])
+
+  if (error) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: 1,
+          minHeight: 0,
+          gap: 12,
+          padding: 40,
+        }}
+      >
+        <span style={{ fontSize: 15, fontWeight: 600 }}>Failed to load repositories</span>
+      </div>
+    )
+  }
 
   if (!repos) return null
 

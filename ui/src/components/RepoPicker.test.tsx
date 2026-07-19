@@ -36,4 +36,14 @@ describe('RepoPicker', () => {
     expect(screen.getByText('unregistered-repo').closest('a')).toBeNull()
     expect(screen.getByText(/not registered/i)).toBeInTheDocument()
   })
+
+  it('renders an error message instead of staying blank when fetchRepos rejects', async () => {
+    vi.spyOn(apiClient, 'fetchRepos').mockRejectedValue(new Error('network error'))
+    render(
+      <MemoryRouter>
+        <RepoPicker />
+      </MemoryRouter>
+    )
+    expect(await screen.findByText(/failed to load repositories/i)).toBeInTheDocument()
+  })
 })

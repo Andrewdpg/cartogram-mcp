@@ -12,6 +12,7 @@ import { SidePanel, type Tab } from './SidePanel'
 type Resolution =
   | { status: 'loading' }
   | { status: 'error'; notFoundId: string }
+  | { status: 'error'; failed: true }
   | { status: 'ready'; chain: ChainEntry[] }
 
 export function DiagramScreen() {
@@ -34,7 +35,7 @@ export function DiagramScreen() {
         if (err instanceof DiagramNotFoundError) {
           setResolution({ status: 'error', notFoundId: err.diagramId })
         } else {
-          throw err
+          setResolution({ status: 'error', failed: true })
         }
       })
   }, [repoId, diagramId, segments])
@@ -55,10 +56,16 @@ export function DiagramScreen() {
           padding: 40,
         }}
       >
-        <span style={{ fontSize: 15, fontWeight: 600 }}>Diagram not found</span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>
-          {resolution.notFoundId}
-        </span>
+        {'notFoundId' in resolution ? (
+          <>
+            <span style={{ fontSize: 15, fontWeight: 600 }}>Diagram not found</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>
+              {resolution.notFoundId}
+            </span>
+          </>
+        ) : (
+          <span style={{ fontSize: 15, fontWeight: 600 }}>Failed to load diagram</span>
+        )}
       </div>
     )
   }

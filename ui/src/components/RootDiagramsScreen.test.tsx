@@ -59,4 +59,10 @@ describe('RootDiagramsScreen', () => {
     await userEvent.type(screen.getByRole('searchbox', { name: /search/i }), 'internals')
     await waitFor(() => expect(screen.getByRole('link', { name: /API Internals/i })).toBeInTheDocument())
   })
+
+  it('renders an error message instead of staying blank when fetchArtifacts rejects', async () => {
+    vi.spyOn(apiClient, 'fetchArtifacts').mockRejectedValue(new Error('network error'))
+    renderScreen()
+    expect(await screen.findByText(/failed to load diagrams/i)).toBeInTheDocument()
+  })
 })
