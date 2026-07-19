@@ -67,7 +67,13 @@ export function createUiServer(cwd: string, registryPath: string, staticDir: str
   // Scoped to non-/api paths so a genuinely unmatched API route still 404s
   // as itself rather than silently returning HTML.
   app.get(/^(?!\/api\/).*/, (_req, res) => {
-    res.sendFile(join(staticDir, 'index.html'))
+    // `root` matters here beyond convention: res.sendFile(absolutePath) with
+    // no root makes the `send` package's dotfile-security check inspect
+    // every segment of the FULL absolute path — a global npm prefix like
+    // ~/.npm-global (a real, common setup) has a dot-prefixed segment and
+    // gets rejected as a "dotfile" access, 404ing a file that genuinely
+    // exists. Passing root scopes that check to the path relative to it.
+    res.sendFile('index.html', { root: staticDir })
   })
 
   return app

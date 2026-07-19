@@ -126,4 +126,24 @@ describe('createUiServer', () => {
     expect(res.status).toBe(404)
     expect(res.text).not.toContain('waycairn ui')
   })
+
+  it('falls back to index.html even when an ancestor directory name starts with a dot (e.g. ~/.npm-global installs)', async () => {
+    // res.sendFile(absolutePath) with no `root` option makes the `send`
+    // package check EVERY segment of the absolute path for a leading dot
+    // (its dotfile-security check) — a global npm prefix like ~/.npm-global
+    // trips it and 404s, even though the file genuinely exists. Passing
+    // `root` scopes that check to the path relative to root instead.
+    const dottedParent = mkdtempSync(join(tmpdir(), '.waycairn-dotted-'))
+    const dottedStaticDir = join(dottedParent, 'ui-dist')
+    mkdirSync(dottedStaticDir, { recursive: true })
+    try {
+      writeFileSync(join(dottedStaticDir, 'index.html'), '<html>waycairn ui</html>')
+      const app = createUiServer(cwd, registryPath, dottedStaticDir)
+      const res = await request(app).get('/repos/host%2Forg%2Frepo')
+      expect(res.status).toBe(200)
+      expect(res.text).toContain('waycairn ui')
+    } finally {
+      rmSync(dottedParent, { recursive: true, force: true })
+    }
+  })
 })
