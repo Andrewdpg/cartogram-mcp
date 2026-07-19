@@ -60,6 +60,9 @@ export function buildRepoGraph(
     try {
       const db = openIndexDb(waycairnDir)
       try {
+        // Refreshes this sibling repo's own on-disk sqlite index if its
+        // artifact files changed since the last read — a side effect of
+        // reading, not something this build intends to write on its own.
         reindexKind(waycairnDir, db, 'diagram')
         const collected = { edges: [] as [string, string][], hasDeployment: false }
         for (const row of listIndexRows(db, 'diagram')) {

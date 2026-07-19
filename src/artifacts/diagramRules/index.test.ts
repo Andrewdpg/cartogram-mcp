@@ -32,4 +32,21 @@ describe('runDiagramRules', () => {
     const result = runDiagramRules(ctx({ data }))
     expect(result).toEqual({ rule: 'deploymentIsAlwaysRoot', message: expect.stringMatching(/childDiagram/) })
   })
+
+  it('runs the cheap local rule before the graph-based rule, so a write violating both surfaces deploymentIsAlwaysRoot without ever calling graph()', () => {
+    let graphCalls = 0
+    const data = { nodes: [{ id: 'a', label: 'A', kind: 'service', childDiagram: 'deployment' }], edges: [] }
+    const result = runDiagramRules(
+      ctx({
+        id: 'deployment',
+        data,
+        graph: () => {
+          graphCalls++
+          return { componentOf: () => new Set(), deploymentOwner: () => 'host/org/other' }
+        },
+      })
+    )
+    expect(result).toEqual({ rule: 'deploymentIsAlwaysRoot', message: expect.stringMatching(/childDiagram/) })
+    expect(graphCalls).toBe(0)
+  })
 })

@@ -2,7 +2,10 @@ import type { DiagramRule, RuleContext } from './types.js'
 import { deploymentIsAlwaysRoot } from './deploymentIsAlwaysRoot.js'
 import { uniqueDeploymentPerComponent } from './uniqueDeploymentPerComponent.js'
 
-export const DIAGRAM_RULES: DiagramRule[] = [uniqueDeploymentPerComponent, deploymentIsAlwaysRoot]
+// Cheap, purely-local rules first — deploymentIsAlwaysRoot never touches the
+// graph, so a violation there rejects before uniqueDeploymentPerComponent
+// pays the cost of scanning every registered repo's sqlite index.
+export const DIAGRAM_RULES: DiagramRule[] = [deploymentIsAlwaysRoot, uniqueDeploymentPerComponent]
 
 export function runDiagramRules(ctx: RuleContext): { rule: string; message: string } | null {
   for (const rule of DIAGRAM_RULES) {
