@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { RepoPicker } from './RepoPicker'
 import * as apiClient from '../lib/apiClient'
@@ -8,7 +9,13 @@ describe('RepoPicker', () => {
   beforeEach(() => {
     vi.spyOn(apiClient, 'fetchRepos').mockResolvedValue({
       local: ['unregistered-repo'],
-      registered: { 'host/org/repo': { path: '/somewhere/repo', name: 'repo' } },
+      registered: {
+        'host/org/repo': { path: '/somewhere/repo', name: 'repo' },
+        'host/org/other': { path: '/somewhere/other', name: 'other' },
+      },
+    })
+    vi.spyOn(apiClient, 'fetchRepoGraph').mockResolvedValue({
+      groups: [['host/org/repo'], ['host/org/other']],
     })
   })
 
@@ -22,7 +29,7 @@ describe('RepoPicker', () => {
         <RepoPicker />
       </MemoryRouter>
     )
-    const link = await screen.findByRole('link', { name: /repo/i })
+    const link = await screen.findByRole('link', { name: /^repo$/i })
     expect(link).toHaveAttribute('href', '/repos/host%2Forg%2Frepo')
   })
 
@@ -45,5 +52,29 @@ describe('RepoPicker', () => {
       </MemoryRouter>
     )
     expect(await screen.findByText(/failed to load repositories/i)).toBeInTheDocument()
+  })
+
+  it('labels a multi-repo connected group as "Connected", and leaves standalone groups unlabeled', async () => {
+    vi.spyOn(apiClient, 'fetchRepoGraph').mockResolvedValue({
+      groups: [['host/org/repo', 'host/org/other']],
+    })
+    render(
+      <MemoryRouter>
+        <RepoPicker />
+      </MemoryRouter>
+    )
+    expect(await screen.findByText('Connected')).toBeInTheDocument()
+  })
+
+  it('filters the visible repos by search query', async () => {
+    render(
+      <MemoryRouter>
+        <RepoPicker />
+      </MemoryRouter>
+    )
+    await screen.findByRole('link', { name: /^repo$/i })
+    await userEvent.type(screen.getByRole('searchbox', { name: /search repositories/i }), 'other')
+    expect(screen.queryByRole('link', { name: /^repo$/i })).toBeNull()
+    expect(screen.getByRole('link', { name: /^other$/i })).toBeInTheDocument()
   })
 })

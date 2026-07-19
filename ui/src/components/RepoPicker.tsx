@@ -1,14 +1,35 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchRepos, type ReposResponse } from '../lib/apiClient'
+import { fetchRepos, fetchRepoGraph, type ReposResponse, type RepoGraphResponse } from '../lib/apiClient'
+import { groupRepos, filterGroups, type RepoGroup } from '../lib/repoGrouping'
+
+function RepoGroupList({ registered, group }: { registered: ReposResponse['registered']; group: RepoGroup }) {
+  return (
+    <ul className="repo-list">
+      {group.repoIds.map((repoId) => (
+        <li key={repoId} className="repo-list-item">
+          <Link to={`/repos/${encodeURIComponent(repoId)}`}>
+            <strong>{registered[repoId].name}</strong>
+            <div aria-hidden="true" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-faint)' }}>{repoId}</div>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 export function RepoPicker() {
   const [repos, setRepos] = useState<ReposResponse | null>(null)
+  const [repoGraph, setRepoGraph] = useState<RepoGraphResponse | null>(null)
+  const [query, setQuery] = useState('')
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    fetchRepos()
-      .then(setRepos)
+    Promise.all([fetchRepos(), fetchRepoGraph()])
+      .then(([reposResult, graphResult]) => {
+        setRepos(reposResult)
+        setRepoGraph(graphResult)
+      })
       .catch(() => setError(true))
   }, [])
 
@@ -31,30 +52,56 @@ export function RepoPicker() {
     )
   }
 
-  if (!repos) return null
+  if (!repos || !repoGraph) return null
 
-  const registeredEntries = Object.entries(repos.registered)
+  const groups = filterGroups(groupRepos(repos.registered, repoGraph.groups), repos.registered, query)
 
   return (
     <div style={{ padding: 28, maxWidth: 640, margin: '0 auto' }}>
       <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 22 }}>Repositories</h1>
-      {registeredEntries.length === 0 ? (
+      <input
+        type="search"
+        aria-label="Search repositories"
+        placeholder="Search by id or name…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        style={{
+          width: '100%',
+          background: 'var(--surface)',
+          color: 'var(--text)',
+          border: 'none',
+          borderRadius: 'var(--radius-sm)',
+          padding: '10px 12px',
+          fontSize: 14,
+          marginBottom: 20,
+          boxSizing: 'border-box',
+        }}
+      />
+      {Object.keys(repos.registered).length === 0 ? (
         <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
           No repos registered yet — run <code>waycairn init</code> inside a repo to register it.
         </p>
       ) : (
-        <ul className="repo-list">
-          {registeredEntries.map(([repoId, entry]) => (
-            <li key={repoId} className="repo-list-item">
-              <Link to={`/repos/${encodeURIComponent(repoId)}`}>
-                <strong>{entry.name}</strong>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-faint)' }}>
-                  {repoId}
-                </div>
-              </Link>
-            </li>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {groups.map((group) => (
+            <div key={group.repoIds.join(',')}>
+              {group.repoIds.length > 1 && (
+                <h2
+                  style={{
+                    fontSize: 12,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    color: 'var(--text-muted)',
+                    margin: '0 0 8px',
+                  }}
+                >
+                  Connected
+                </h2>
+              )}
+              <RepoGroupList registered={repos.registered} group={group} />
+            </div>
           ))}
-        </ul>
+        </div>
       )}
 
       {repos.local.length > 0 && (
