@@ -26,7 +26,11 @@ if (subcommand === 'init') {
   const staticDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'ui', 'dist')
   const port = Number(process.env.WAYCAIRN_UI_PORT) || 4317
   const app = createUiServer(process.cwd(), registryPath, staticDir)
-  app.listen(port, () => {
+  // Bind to loopback only — this API has no auth and returns registered
+  // repos' absolute filesystem paths and diagram content; binding to all
+  // interfaces (the default with no host argument) would expose that to
+  // anyone else on the same network.
+  app.listen(port, '127.0.0.1', () => {
     console.log(`waycairn ui: http://localhost:${port}`)
   })
 } else {
