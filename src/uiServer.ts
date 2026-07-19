@@ -4,6 +4,7 @@ import { readRegistry, type Registry } from './registry.js'
 import { listArtifactsTool } from './tools/listArtifacts.js'
 import { getArtifactTool } from './tools/getArtifact.js'
 import { listRepos } from './tools/listRepos.js'
+import { buildRepoGraph } from './artifacts/repoGraph.js'
 
 function resolveRegisteredRepoDir(registryPath: string, repoId: string): string | null {
   const registry = readRegistry(registryPath)
@@ -31,6 +32,20 @@ export function createUiServer(cwd: string, registryPath: string, staticDir: str
   app.get('/api/repos', (_req, res) => {
     const registered = readRegistry(registryPath)
     res.json({ local: localOnly(cwd, registered), registered })
+  })
+
+  app.get('/api/repo-graph', (_req, res) => {
+    const registry = readRegistry(registryPath)
+    const graph = buildRepoGraph(registryPath)
+    const seen = new Set<string>()
+    const groups: string[][] = []
+    for (const repoId of Object.keys(registry)) {
+      if (seen.has(repoId)) continue
+      const component = [...graph.componentOf(repoId)].filter((id) => id in registry).sort()
+      for (const id of component) seen.add(id)
+      groups.push(component)
+    }
+    res.json({ groups })
   })
 
   app.get('/api/repos/:repoId/artifacts', (req, res) => {

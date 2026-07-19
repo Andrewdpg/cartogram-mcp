@@ -146,4 +146,36 @@ describe('createUiServer', () => {
       rmSync(dottedParent, { recursive: true, force: true })
     }
   })
+
+  it('GET /api/repo-graph groups repos connected via externalRef into one cluster, leaves others standalone', async () => {
+    const repoARoot = mkdtempSync(join(tmpdir(), 'waycairn-uiserver-repo-a-'))
+    const repoBRoot = mkdtempSync(join(tmpdir(), 'waycairn-uiserver-repo-b-'))
+    const repoCRoot = mkdtempSync(join(tmpdir(), 'waycairn-uiserver-repo-c-'))
+    try {
+      upsertRegistryEntry(registryPath, 'host/org/a', { path: repoARoot, name: 'a' })
+      upsertRegistryEntry(registryPath, 'host/org/b', { path: repoBRoot, name: 'b' })
+      upsertRegistryEntry(registryPath, 'host/org/c', { path: repoCRoot, name: 'c' })
+      upsertArtifactTool(
+        join(repoARoot, '.waycairn'),
+        'diagram',
+        'root',
+        { nodes: [{ id: 'x', label: 'X', kind: 'external', externalRef: { repo: 'host/org/b', artifactId: 'root' } }], edges: [] },
+        registryPath
+      )
+      upsertArtifactTool(join(repoBRoot, '.waycairn'), 'diagram', 'root', { nodes: [], edges: [] }, registryPath)
+      upsertArtifactTool(join(repoCRoot, '.waycairn'), 'diagram', 'root', { nodes: [], edges: [] }, registryPath)
+
+      const app = createUiServer(cwd, registryPath, staticDir)
+      const res = await request(app).get('/api/repo-graph')
+      expect(res.status).toBe(200)
+      expect(res.body.groups).toEqual(
+        expect.arrayContaining([['host/org/a', 'host/org/b'], ['host/org/c']])
+      )
+      expect(res.body.groups).toHaveLength(2)
+    } finally {
+      rmSync(repoARoot, { recursive: true, force: true })
+      rmSync(repoBRoot, { recursive: true, force: true })
+      rmSync(repoCRoot, { recursive: true, force: true })
+    }
+  })
 })
