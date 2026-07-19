@@ -11,7 +11,7 @@ function toDiagrams(artifacts: ArtifactRecord[]): Diagram[] {
 }
 
 function toSummary(diagram: Diagram): DiagramSummary {
-  return { id: diagram.id, title: diagram.title }
+  return { id: diagram.id, title: diagram.title ?? diagram.id }
 }
 
 function byTitle(a: DiagramSummary, b: DiagramSummary): number {
@@ -40,7 +40,7 @@ export function searchDiagrams(artifacts: ArtifactRecord[], query: string): Diag
   const q = query.trim().toLowerCase()
   if (!q) return []
   return toDiagrams(artifacts)
-    .filter((d) => d.id.toLowerCase().includes(q) || d.title.toLowerCase().includes(q))
+    .filter((d) => d.id.toLowerCase().includes(q) || (d.title ?? d.id).toLowerCase().includes(q))
     .map(toSummary)
     .sort(byTitle)
 }

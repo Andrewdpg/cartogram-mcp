@@ -25,7 +25,26 @@ const apiInternals: Diagram = {
   edges: [],
 }
 
-const records: Record<string, Diagram> = { deployment, 'api-internals': apiInternals }
+// Real stored diagram artifacts never have `title` (see ui/src/lib/types.ts)
+// — this is the shape that actually crashed the breadcrumb in production.
+const untitledChild: Diagram = {
+  id: 'untitled-child',
+  nodes: [],
+  edges: [],
+} as Diagram
+const rootWithUntitledChild: Diagram = {
+  id: 'root-untitled',
+  title: 'Root',
+  nodes: [{ id: 'child', label: 'Child', kind: 'system', childDiagram: 'untitled-child' }],
+  edges: [],
+}
+
+const records: Record<string, Diagram> = {
+  deployment,
+  'api-internals': apiInternals,
+  'root-untitled': rootWithUntitledChild,
+  'untitled-child': untitledChild,
+}
 
 function renderScreen(initialPath: string) {
   return render(
@@ -76,5 +95,12 @@ describe('DiagramScreen', () => {
     vi.spyOn(apiClient, 'fetchArtifact').mockRejectedValue(new Error('server error'))
     renderScreen('/repos/host%2Forg%2Frepo/diagrams/deployment')
     expect(await screen.findByText(/failed to load diagram/i)).toBeInTheDocument()
+  })
+
+  it('falls back to id in the breadcrumb for a diagram with no title, without crashing', async () => {
+    renderScreen('/repos/host%2Forg%2Frepo/diagrams/root-untitled')
+    await screen.findByRole('button', { name: 'Home' })
+    await userEvent.click(await screen.findByText('Child'))
+    expect(await screen.findByRole('button', { name: 'untitled-child' })).toBeInTheDocument()
   })
 })

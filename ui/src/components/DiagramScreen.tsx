@@ -73,7 +73,7 @@ export function DiagramScreen() {
   const { chain } = resolution
   const current = chain[chain.length - 1].diagram
   const positionedNodes = layoutDiagram(current.nodes, current.edges)
-  const labels = ['Home', ...chain.slice(1).map((c) => c.diagram.title)]
+  const labels = ['Home', ...chain.slice(1).map((c) => c.diagram.title ?? c.diagram.id)]
   const selectedNode = current.nodes.find((n: DiagramNodeData) => n.id === selectedNodeId) ?? null
 
   function handleNodeClick(nodeId: string) {

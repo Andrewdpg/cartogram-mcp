@@ -20,6 +20,10 @@ const apiInternals: Diagram = {
   edges: [],
 }
 const orphanNotes: Diagram = { id: 'notes', title: 'Notes', nodes: [], edges: [] }
+// Real stored diagram artifacts never have a `title` — the backend's
+// validateDiagramArtifactData only synthesizes one to reuse shape
+// validation, it never persists it (see src/artifacts/kinds/diagram.ts).
+const untitled: Diagram = { id: 'untitled-diagram', nodes: [], edges: [] } as Diagram
 
 describe('computeRootDiagrams', () => {
   it('excludes any diagram referenced as another diagram\'s childDiagram', () => {
@@ -34,6 +38,15 @@ describe('computeRootDiagrams', () => {
 
   it('returns an empty array for an empty artifact list', () => {
     expect(computeRootDiagrams([])).toEqual([])
+  })
+
+  it('falls back to id as the title for a diagram with no title (the real, common case)', () => {
+    const result = computeRootDiagrams([artifact(untitled)])
+    expect(result).toEqual([{ id: 'untitled-diagram', title: 'untitled-diagram' }])
+  })
+
+  it('does not crash sorting a mix of titled and untitled diagrams', () => {
+    expect(() => computeRootDiagrams([artifact(deployment), artifact(untitled)])).not.toThrow()
   })
 })
 

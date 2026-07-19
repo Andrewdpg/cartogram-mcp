@@ -49,7 +49,12 @@ export interface DiagramEdgeData {
 
 export interface Diagram {
   id: string
-  title: string
+  // Real stored diagram artifacts never have this — the backend's
+  // validateDiagramArtifactData (src/artifacts/kinds/diagram.ts at the repo
+  // root) only synthesizes a title to reuse shape validation, it never
+  // persists one. The artifact's own id IS its identity. Every consumer of
+  // `title` must fall back to `id` when it's absent.
+  title?: string
   notation?: Notation
   nodes: DiagramNodeData[]
   edges: DiagramEdgeData[]
