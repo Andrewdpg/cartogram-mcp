@@ -5,19 +5,24 @@
 
 export type NodeKind =
   | 'system' | 'container' | 'component' | 'service' | 'server'
-  | 'database' | 'class' | 'external' | 'bridge'
+  | 'database' | 'class' | 'external' | 'bridge' | 'table'
 
 export const NODE_KINDS: readonly NodeKind[] = [
   'system', 'container', 'component', 'service', 'server',
-  'database', 'class', 'external', 'bridge',
+  'database', 'class', 'external', 'bridge', 'table',
 ]
 
-export type Notation = 'c4' | 'uml-structural' | 'uml-behavioral'
-export const NOTATIONS: readonly Notation[] = ['c4', 'uml-structural', 'uml-behavioral']
+export type Notation = 'c4' | 'uml-structural' | 'uml-behavioral' | 'erd'
+export const NOTATIONS: readonly Notation[] = ['c4', 'uml-structural', 'uml-behavioral', 'erd']
 
 export type UmlRelationship = 'association' | 'composition' | 'inheritance' | 'dependency'
 export const UML_RELATIONSHIPS: readonly UmlRelationship[] = [
   'association', 'composition', 'inheritance', 'dependency',
+]
+
+export type ErdCardinality = 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many'
+export const ERD_CARDINALITIES: readonly ErdCardinality[] = [
+  'one-to-one', 'one-to-many', 'many-to-one', 'many-to-many',
 ]
 
 export interface SourceRef {
@@ -50,6 +55,7 @@ export interface DiagramEdgeData {
   order?: number
   async?: boolean
   condition?: string
+  cardinality?: ErdCardinality
 }
 
 export interface Diagram {

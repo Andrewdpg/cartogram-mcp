@@ -47,3 +47,48 @@ describe('validateDiagramShape - sourceRefs', () => {
     expect(() => validateDiagramShape(baseDiagram({ sourceRefs: [42] }), 'd1')).toThrow(InvalidDiagramError)
   })
 })
+
+describe('validateDiagramShape - erd support', () => {
+  it('accepts kind "table" on a node', () => {
+    const diagram = validateDiagramShape(baseDiagram({ kind: 'table' }), 'd1')
+    expect(diagram.nodes[0].kind).toBe('table')
+  })
+
+  it('accepts notation "erd" on the diagram', () => {
+    const diagram = validateDiagramShape({ id: 'd1', title: 'D1', notation: 'erd', nodes: [], edges: [] }, 'd1')
+    expect(diagram.notation).toBe('erd')
+  })
+
+  it('accepts a valid edge cardinality', () => {
+    const diagram = validateDiagramShape(
+      {
+        id: 'd1',
+        title: 'D1',
+        nodes: [
+          { id: 'a', label: 'A', kind: 'table' },
+          { id: 'b', label: 'B', kind: 'table' },
+        ],
+        edges: [{ from: 'a', to: 'b', cardinality: 'one-to-many' }],
+      },
+      'd1'
+    )
+    expect(diagram.edges[0].cardinality).toBe('one-to-many')
+  })
+
+  it('rejects an invalid edge cardinality', () => {
+    expect(() =>
+      validateDiagramShape(
+        {
+          id: 'd1',
+          title: 'D1',
+          nodes: [
+            { id: 'a', label: 'A', kind: 'table' },
+            { id: 'b', label: 'B', kind: 'table' },
+          ],
+          edges: [{ from: 'a', to: 'b', cardinality: 'bogus' }],
+        },
+        'd1'
+      )
+    ).toThrow(InvalidDiagramError)
+  })
+})
