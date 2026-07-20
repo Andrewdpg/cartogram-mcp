@@ -7,6 +7,7 @@ import {
   BackgroundVariant,
   Controls,
   MiniMap,
+  Panel,
   useNodesState,
   useUpdateNodeInternals,
   type Edge,
@@ -16,6 +17,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import { DiagramNode } from './DiagramNode'
 import { DiagramEdge } from './DiagramEdge'
+import { ExportImageButton } from './ExportImageButton'
 import { UmlMarkerDefs } from './umlMarkers'
 import { buildFlowEdges } from './buildFlowEdges'
 import { computeEdgeRouting, computeHandleSignature } from '../lib/edgeGeometry'
@@ -111,6 +113,9 @@ function DiagramFlow({ renderedNodes, flowEdges, onNodesChange, onNodeClick, han
           return kind ? `var(--kind-${kind}-fg)` : 'var(--text-faint)'
         }}
       />
+      <Panel position="top-right">
+        <ExportImageButton />
+      </Panel>
     </ReactFlow>
   )
 }
