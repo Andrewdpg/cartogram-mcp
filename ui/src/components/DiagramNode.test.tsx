@@ -5,7 +5,7 @@ import { ReactFlow } from '@xyflow/react'
 import { DiagramNode } from './DiagramNode'
 import type { DiagramNodeData } from '../lib/types'
 
-function renderNode(data: DiagramNodeData & { onOpenDetail?: (nodeId: string) => void }) {
+function renderNode(data: DiagramNodeData & { onOpenDetail?: (nodeId: string) => void; opacity?: number }) {
   return render(
     <ReactFlow
       nodes={[{ id: data.id, type: 'diagramNode', position: { x: 0, y: 0 }, data }]}
@@ -52,6 +52,13 @@ describe('DiagramNode', () => {
   it('does not render a view-more button when onOpenDetail is absent', () => {
     renderNode({ id: 'n1', label: 'My Node', kind: 'service' })
     expect(screen.queryByLabelText('View details for My Node')).not.toBeInTheDocument()
+  })
+
+  it('dims the view-more button to match the dimmed node opacity', () => {
+    const onOpenDetail = vi.fn()
+    renderNode({ id: 'n1', label: 'My Node', kind: 'service', onOpenDetail, opacity: 0.3 })
+    const button = screen.getByLabelText('View details for My Node')
+    expect(button.style.opacity).toBe('0.3')
   })
 
   it('renders the kind icon next to the label', () => {

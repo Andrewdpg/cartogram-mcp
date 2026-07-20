@@ -32,4 +32,10 @@ describe('DiagramEdge', () => {
     const { container } = renderEdge()
     expect(container.querySelector('.badge')).toBeNull()
   })
+
+  it('applies the same opacity from style to the label as the path receives', () => {
+    renderEdge({ label: 'calls', style: { opacity: 0.15 } })
+    const badge = screen.getByText('calls')
+    expect(badge.style.opacity).toBe('0.15')
+  })
 })

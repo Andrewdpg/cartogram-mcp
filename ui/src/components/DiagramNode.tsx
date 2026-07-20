@@ -8,7 +8,11 @@ import { getTechIcon } from '../lib/techIcons'
 import { TechBadge } from './TechBadge'
 
 export interface DiagramNodeProps {
-  data: DiagramNodeData & { onOpenDetail?: (nodeId: string) => void; handlePlacements?: HandlePlacement[] }
+  data: DiagramNodeData & {
+    onOpenDetail?: (nodeId: string) => void
+    handlePlacements?: HandlePlacement[]
+    opacity?: number
+  }
 }
 
 const SIDE_TO_POSITION: Record<Side, Position> = {
@@ -24,6 +28,7 @@ const SIDE_TO_POSITION: Record<Side, Position> = {
 // coupling to a type shape that has changed across major versions of the
 // library.
 export function DiagramNode({ data }: DiagramNodeProps) {
+  const opacity = data.opacity ?? 1
   const Shape = NODE_SHAPES[data.kind]
   const Icon = getNodeKindIcon(data.kind)
   const placements = data.handlePlacements ?? []
@@ -66,6 +71,7 @@ export function DiagramNode({ data }: DiagramNodeProps) {
               color: 'var(--text)',
               cursor: 'pointer',
               boxShadow: 'var(--shadow-card)',
+              opacity,
             }}
           >
             <Eye size={14} />

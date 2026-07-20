@@ -81,7 +81,10 @@ function DiagramFlow({ renderedNodes, flowEdges, onNodesChange, onNodeClick, han
   const styledNodes =
     highlight.nodeIds.size === 0
       ? renderedNodes
-      : renderedNodes.map((n) => ({ ...n, style: { ...n.style, opacity: highlight.nodeIds.has(n.id) ? 1 : 0.3 } }))
+      : renderedNodes.map((n) => {
+          const opacity = highlight.nodeIds.has(n.id) ? 1 : 0.3
+          return { ...n, style: { ...n.style, opacity }, data: { ...n.data, opacity } }
+        })
 
   const styledEdges =
     highlight.nodeIds.size === 0
