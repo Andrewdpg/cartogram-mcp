@@ -1,10 +1,12 @@
 import express, { type Express } from 'express'
 import { join, resolve } from 'node:path'
+import { spawn as nodeSpawn } from 'node:child_process'
 import { readRegistry, type Registry } from './registry.js'
 import { listArtifactsTool } from './tools/listArtifacts.js'
 import { getArtifactTool } from './tools/getArtifact.js'
 import { listRepos } from './tools/listRepos.js'
 import { buildRepoGraph } from './artifacts/repoGraph.js'
+import type { SourceRef } from './validateDiagramShape.js'
 
 function resolveRegisteredRepoDir(registryPath: string, repoId: string): string | null {
   const registry = readRegistry(registryPath)
@@ -26,8 +28,34 @@ function localOnly(cwd: string, registry: Registry): string[] {
   return listRepos(cwd).filter((name) => !registeredPaths.has(resolve(cwd, name)))
 }
 
-export function createUiServer(cwd: string, registryPath: string, staticDir: string): Express {
+export type SpawnEditor = (cmd: string, args: string[]) => void
+
+const defaultSpawnEditor: SpawnEditor = (cmd, args) => {
+  nodeSpawn(cmd, args, { detached: true, stdio: 'ignore' }).unref()
+}
+
+// path:line or path:line-line (the range form already produced when nodes
+// are documented) -> [relativePath, firstLineNumber | undefined]. Only the
+// first number matters — editors jump to a line, not a range.
+function splitRefPath(path: string): { relativePath: string; line?: string } {
+  const match = path.match(/^(.*):(\d+)(?:-\d+)?$/)
+  if (!match) return { relativePath: path }
+  return { relativePath: match[1], line: match[2] }
+}
+
+export interface CreateUiServerOptions {
+  spawnEditor?: SpawnEditor
+}
+
+export function createUiServer(
+  cwd: string,
+  registryPath: string,
+  staticDir: string,
+  options: CreateUiServerOptions = {}
+): Express {
+  const spawnEditor = options.spawnEditor ?? defaultSpawnEditor
   const app = express()
+  app.use(express.json())
 
   app.get('/api/repos', (_req, res) => {
     const registered = readRegistry(registryPath)
@@ -71,6 +99,38 @@ export function createUiServer(cwd: string, registryPath: string, staticDir: str
       return
     }
     res.json(record)
+  })
+
+  app.post('/api/open-file', (req, res) => {
+    const body = req.body as { repoId?: string; ref?: string | SourceRef }
+    const ref = body.ref
+    const effectiveRepoId = typeof ref === 'object' && ref !== null ? ref.repo : body.repoId
+    if (!effectiveRepoId) {
+      res.status(400).json({ error: 'missing repoId' })
+      return
+    }
+    const registry = readRegistry(registryPath)
+    const entry = registry[effectiveRepoId]
+    if (!entry) {
+      res.status(404).json({ error: `repoId ${JSON.stringify(effectiveRepoId)} is not registered` })
+      return
+    }
+    const rawPath = typeof ref === 'object' && ref !== null ? ref.path : ref
+    if (!rawPath) {
+      res.status(400).json({ error: 'missing ref path' })
+      return
+    }
+    const { relativePath, line } = splitRefPath(rawPath)
+    const absPath = join(entry.path, relativePath)
+    const target = line !== undefined ? `${absPath}:${line}` : absPath
+    const editorCmd = process.env.EDITOR ?? 'code'
+    const useGotoLine = line !== undefined && !process.env.EDITOR
+    try {
+      spawnEditor(editorCmd, useGotoLine ? ['-g', target] : [target])
+      res.status(200).json({})
+    } catch (err) {
+      res.status(500).json({ error: `could not launch editor '${editorCmd}', is it on PATH? (${(err as Error).message})` })
+    }
   })
 
   app.use(express.static(staticDir))

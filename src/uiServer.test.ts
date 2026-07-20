@@ -179,3 +179,119 @@ describe('createUiServer', () => {
     }
   })
 })
+
+describe('createUiServer - POST /api/open-file', () => {
+  let prevEditor: string | undefined
+
+  beforeEach(() => {
+    // Tests assert the "no $EDITOR" default ('code') branch; the host
+    // shell running these tests may itself have $EDITOR set (e.g. to
+    // "vi"), which would otherwise leak into the endpoint under test.
+    prevEditor = process.env.EDITOR
+    delete process.env.EDITOR
+  })
+
+  afterEach(() => {
+    if (prevEditor === undefined) delete process.env.EDITOR
+    else process.env.EDITOR = prevEditor
+  })
+
+  it('spawns the editor for a same-repo string ref', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'waycairn-uiserver-openfile-'))
+    try {
+      upsertRegistryEntry(registryPath, 'host/org/repo', { path: repoRoot, name: 'repo' })
+      const spawnCalls: Array<{ cmd: string; args: string[] }> = []
+      const app = createUiServer(cwd, registryPath, staticDir, {
+        spawnEditor: (cmd, args) => spawnCalls.push({ cmd, args }),
+      })
+      const res = await request(app)
+        .post('/api/open-file')
+        .send({ repoId: 'host/org/repo', ref: 'src/foo.ts:42' })
+      expect(res.status).toBe(200)
+      expect(spawnCalls).toEqual([{ cmd: 'code', args: ['-g', `${repoRoot}/src/foo.ts:42`] }])
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('spawns the editor without -g when the ref has no line number', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'waycairn-uiserver-openfile-'))
+    try {
+      upsertRegistryEntry(registryPath, 'host/org/repo', { path: repoRoot, name: 'repo' })
+      const spawnCalls: Array<{ cmd: string; args: string[] }> = []
+      const app = createUiServer(cwd, registryPath, staticDir, {
+        spawnEditor: (cmd, args) => spawnCalls.push({ cmd, args }),
+      })
+      const res = await request(app).post('/api/open-file').send({ repoId: 'host/org/repo', ref: 'src/foo.ts' })
+      expect(res.status).toBe(200)
+      expect(spawnCalls).toEqual([{ cmd: 'code', args: [`${repoRoot}/src/foo.ts`] }])
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it("resolves a cross-repo {repo, path} ref against the ref's own repo, not the request repoId", async () => {
+    const ownerRoot = mkdtempSync(join(tmpdir(), 'waycairn-uiserver-openfile-owner-'))
+    const otherRoot = mkdtempSync(join(tmpdir(), 'waycairn-uiserver-openfile-other-'))
+    try {
+      upsertRegistryEntry(registryPath, 'host/org/owner', { path: ownerRoot, name: 'owner' })
+      upsertRegistryEntry(registryPath, 'host/org/other', { path: otherRoot, name: 'other' })
+      const spawnCalls: Array<{ cmd: string; args: string[] }> = []
+      const app = createUiServer(cwd, registryPath, staticDir, {
+        spawnEditor: (cmd, args) => spawnCalls.push({ cmd, args }),
+      })
+      const res = await request(app)
+        .post('/api/open-file')
+        .send({ repoId: 'host/org/owner', ref: { repo: 'host/org/other', path: 'lib/baz.ts:5' } })
+      expect(res.status).toBe(200)
+      expect(spawnCalls).toEqual([{ cmd: 'code', args: ['-g', `${otherRoot}/lib/baz.ts:5`] }])
+    } finally {
+      rmSync(ownerRoot, { recursive: true, force: true })
+      rmSync(otherRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('returns 404 when the effective repoId is not registered', async () => {
+    const app = createUiServer(cwd, registryPath, staticDir, { spawnEditor: () => {} })
+    const res = await request(app).post('/api/open-file').send({ repoId: 'host/org/never', ref: 'src/foo.ts' })
+    expect(res.status).toBe(404)
+    expect(res.body.error).toContain('is not registered')
+  })
+
+  it('uses $EDITOR when set, without -g, even if the ref has a line number', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'waycairn-uiserver-openfile-'))
+    const prevEditor = process.env.EDITOR
+    process.env.EDITOR = 'subl'
+    try {
+      upsertRegistryEntry(registryPath, 'host/org/repo', { path: repoRoot, name: 'repo' })
+      const spawnCalls: Array<{ cmd: string; args: string[] }> = []
+      const app = createUiServer(cwd, registryPath, staticDir, {
+        spawnEditor: (cmd, args) => spawnCalls.push({ cmd, args }),
+      })
+      const res = await request(app).post('/api/open-file').send({ repoId: 'host/org/repo', ref: 'src/foo.ts:42' })
+      expect(res.status).toBe(200)
+      expect(spawnCalls).toEqual([{ cmd: 'subl', args: [`${repoRoot}/src/foo.ts:42`] }])
+    } finally {
+      if (prevEditor === undefined) delete process.env.EDITOR
+      else process.env.EDITOR = prevEditor
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('returns 500 when the editor fails to launch', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'waycairn-uiserver-openfile-'))
+    try {
+      upsertRegistryEntry(registryPath, 'host/org/repo', { path: repoRoot, name: 'repo' })
+      const app = createUiServer(cwd, registryPath, staticDir, {
+        spawnEditor: () => {
+          throw Object.assign(new Error('spawn code ENOENT'), { code: 'ENOENT' })
+        },
+      })
+      const res = await request(app).post('/api/open-file').send({ repoId: 'host/org/repo', ref: 'src/foo.ts' })
+      expect(res.status).toBe(500)
+      expect(res.body.error).toContain('could not launch editor')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+})
