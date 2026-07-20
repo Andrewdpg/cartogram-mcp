@@ -1,15 +1,17 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { ReactFlowProvider } from '@xyflow/react'
+import { ReactFlow } from '@xyflow/react'
 import { DiagramNode } from './DiagramNode'
 import type { DiagramNodeData } from '../lib/types'
 
 function renderNode(data: DiagramNodeData & { onOpenDetail?: (nodeId: string) => void }) {
   return render(
-    <ReactFlowProvider>
-      <DiagramNode data={data} />
-    </ReactFlowProvider>
+    <ReactFlow
+      nodes={[{ id: data.id, type: 'diagramNode', position: { x: 0, y: 0 }, data }]}
+      edges={[]}
+      nodeTypes={{ diagramNode: DiagramNode }}
+    />
   )
 }
 

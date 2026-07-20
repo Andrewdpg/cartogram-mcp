@@ -1,4 +1,5 @@
-import { Handle, Position } from '@xyflow/react'
+import { Handle, NodeToolbar, Position } from '@xyflow/react'
+import { Eye } from 'lucide-react'
 import type { DiagramNodeData } from '../lib/types'
 import type { HandlePlacement, Side } from '../lib/edgeGeometry'
 import { NODE_SHAPES } from './nodeShapes'
@@ -45,34 +46,31 @@ export function DiagramNode({ data }: DiagramNodeProps) {
         />
       ))}
       {data.onOpenDetail && (
-        <button
-          className="node-eye-btn"
-          aria-label={`View details for ${data.label}`}
-          onClick={(e) => {
-            e.stopPropagation()
-            data.onOpenDetail?.(data.id)
-          }}
-          style={{
-            position: 'absolute',
-            top: -10,
-            right: -10,
-            width: 22,
-            height: 22,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '50%',
-            border: '1px solid var(--border)',
-            background: 'var(--surface)',
-            color: 'var(--text)',
-            cursor: 'pointer',
-            fontSize: 11,
-            lineHeight: 1,
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.4)',
-          }}
-        >
-          👁
-        </button>
+        <NodeToolbar nodeId={data.id} position={Position.Top} isVisible={true}>
+          <button
+            className="node-eye-btn"
+            aria-label={`View details for ${data.label}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              data.onOpenDetail?.(data.id)
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              border: 'none',
+              background: 'var(--surface)',
+              color: 'var(--text)',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-card)',
+            }}
+          >
+            <Eye size={14} />
+          </button>
+        </NodeToolbar>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <Icon size={14} color={`var(--kind-${data.kind}-fg)`} style={{ flexShrink: 0 }} />
