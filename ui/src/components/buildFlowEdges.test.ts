@@ -72,4 +72,10 @@ describe('buildFlowEdges', () => {
     expect(flowEdge.sourceHandle).toBe(routing.edgeRouting[0].sourceHandle)
     expect(flowEdge.targetHandle).toBe(routing.edgeRouting[0].targetHandle)
   })
+
+  it('tags every built edge with the diagramEdge type', () => {
+    const edges: DiagramEdgeData[] = [{ from: 'a', to: 'b' }]
+    const [flowEdge] = buildFlowEdges(edges, route(edges))
+    expect(flowEdge.type).toBe('diagramEdge')
+  })
 })

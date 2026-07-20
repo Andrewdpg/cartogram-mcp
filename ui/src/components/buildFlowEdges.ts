@@ -30,6 +30,7 @@ export function buildFlowEdges(edges: DiagramEdgeData[], routing: RoutingResult)
       id: edgeId,
       source: e.from,
       target: e.to,
+      type: 'diagramEdge',
       sourceHandle: routed?.sourceHandle,
       targetHandle: routed?.targetHandle,
       label: buildEdgeLabel(e),

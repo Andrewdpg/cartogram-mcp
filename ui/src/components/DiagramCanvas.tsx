@@ -14,6 +14,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { DiagramNode } from './DiagramNode'
+import { DiagramEdge } from './DiagramEdge'
 import { UmlMarkerDefs } from './umlMarkers'
 import { buildFlowEdges } from './buildFlowEdges'
 import { computeEdgeRouting, computeHandleSignature } from '../lib/edgeGeometry'
@@ -26,6 +27,8 @@ import type { DiagramEdgeData } from '../lib/types'
 // that's wired into the library. See DiagramNode.tsx for why.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const nodeTypes = { diagramNode: DiagramNode as ComponentType<any> }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const edgeTypes = { diagramEdge: DiagramEdge as ComponentType<any> }
 
 export interface DiagramCanvasProps {
   nodes: PositionedNode[]
@@ -70,6 +73,7 @@ function DiagramFlow({ renderedNodes, flowEdges, onNodesChange, onNodeClick, han
       nodes={renderedNodes}
       edges={flowEdges}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
       onNodeClick={(_, node) => onNodeClick(node.id)}
       fitView
