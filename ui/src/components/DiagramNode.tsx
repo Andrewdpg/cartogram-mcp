@@ -2,6 +2,7 @@ import { Handle, Position } from '@xyflow/react'
 import type { DiagramNodeData } from '../lib/types'
 import type { HandlePlacement, Side } from '../lib/edgeGeometry'
 import { NODE_SHAPES } from './nodeShapes'
+import { getNodeKindIcon } from '../lib/nodeKindIcons'
 import { getTechIcon } from '../lib/techIcons'
 import { TechBadge } from './TechBadge'
 
@@ -23,6 +24,7 @@ const SIDE_TO_POSITION: Record<Side, Position> = {
 // library.
 export function DiagramNode({ data }: DiagramNodeProps) {
   const Shape = NODE_SHAPES[data.kind]
+  const Icon = getNodeKindIcon(data.kind)
   const placements = data.handlePlacements ?? []
 
   return (
@@ -70,7 +72,10 @@ export function DiagramNode({ data }: DiagramNodeProps) {
           👁
         </button>
       )}
-      <span style={{ fontWeight: 600, fontSize: 13 }}>{data.label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Icon size={14} color={`var(--kind-${data.kind}-fg)`} style={{ flexShrink: 0 }} />
+        <span style={{ fontWeight: 600, fontSize: 13 }}>{data.label}</span>
+      </div>
       {data.responsibility && (
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{data.responsibility}</span>
       )}

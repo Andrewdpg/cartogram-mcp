@@ -51,4 +51,9 @@ describe('DiagramNode', () => {
     renderNode({ id: 'n1', label: 'My Node', kind: 'service' })
     expect(screen.queryByLabelText('View details for My Node')).not.toBeInTheDocument()
   })
+
+  it('renders the kind icon next to the label', () => {
+    renderNode({ id: 'n1', label: 'My Node', kind: 'database' })
+    expect(document.querySelector('svg.lucide-database')).not.toBeNull()
+  })
 })
