@@ -63,4 +63,16 @@ describe('DiagramNode', () => {
     expect(shape.style.border).toBe('')
     expect(shape.style.boxShadow).toBe('var(--shadow-card)')
   })
+
+  it('colors each connection handle with its node kind color via --handle-color', () => {
+    renderNode({
+      id: 'n1',
+      label: 'My Node',
+      kind: 'database',
+      handlePlacements: [{ id: 'n1|right|source#0', type: 'source', side: 'right', offsetFraction: 0.5 }],
+    })
+    const handle = document.querySelector('.diagram-handle') as HTMLElement
+    expect(handle).not.toBeNull()
+    expect(handle.style.getPropertyValue('--handle-color')).toBe('var(--kind-database-fg)')
+  })
 })

@@ -145,6 +145,20 @@ input:focus-visible {
   background: var(--surface-raised);
 }
 
+.diagram-handle {
+  width: 8px;
+  height: 8px;
+  border: none;
+  background: var(--handle-color, var(--accent));
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.node-shape:hover .diagram-handle,
+.node-shape:focus-within .diagram-handle {
+  opacity: 1;
+}
+
 .app-shell {
   height: 100%;
   display: flex;

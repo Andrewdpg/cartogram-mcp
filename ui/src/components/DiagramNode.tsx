@@ -35,11 +35,13 @@ export function DiagramNode({ data }: DiagramNodeProps) {
           id={p.id}
           type={p.type}
           position={SIDE_TO_POSITION[p.side]}
-          style={
-            p.side === 'left' || p.side === 'right'
+          className="diagram-handle"
+          style={{
+            ...(p.side === 'left' || p.side === 'right'
               ? { top: `${p.offsetFraction * 100}%`, transform: 'translateY(-50%)' }
-              : { left: `${p.offsetFraction * 100}%`, transform: 'translateX(-50%)' }
-          }
+              : { left: `${p.offsetFraction * 100}%`, transform: 'translateX(-50%)' }),
+            ['--handle-color' as string]: `var(--kind-${data.kind}-fg)`,
+          }}
         />
       ))}
       {data.onOpenDetail && (
