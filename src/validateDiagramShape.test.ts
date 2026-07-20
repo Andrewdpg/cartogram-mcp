@@ -1,0 +1,49 @@
+import { describe, it, expect } from 'vitest'
+import { validateDiagramShape, InvalidDiagramError } from './validateDiagramShape.js'
+
+function baseDiagram(node: Record<string, unknown>) {
+  return { id: 'd1', title: 'D1', nodes: [{ id: 'n1', label: 'N1', kind: 'service', ...node }], edges: [] }
+}
+
+describe('validateDiagramShape - sourceRefs', () => {
+  it('accepts a plain string sourceRef (same-repo, relative path)', () => {
+    const diagram = validateDiagramShape(baseDiagram({ sourceRefs: ['src/foo.ts:42'] }), 'd1')
+    expect(diagram.nodes[0].sourceRefs).toEqual(['src/foo.ts:42'])
+  })
+
+  it('accepts a {repo, path} sourceRef object (cross-repo)', () => {
+    const ref = { repo: 'host/org/other', path: 'lib/baz.ts:5' }
+    const diagram = validateDiagramShape(baseDiagram({ sourceRefs: [ref] }), 'd1')
+    expect(diagram.nodes[0].sourceRefs).toEqual([ref])
+  })
+
+  it('accepts a mix of string and object entries in the same array', () => {
+    const diagram = validateDiagramShape(
+      baseDiagram({ sourceRefs: ['src/foo.ts:42', { repo: 'host/org/other', path: 'lib/baz.ts:5' }] }),
+      'd1'
+    )
+    expect(diagram.nodes[0].sourceRefs).toHaveLength(2)
+  })
+
+  it('rejects a sourceRef object missing "path"', () => {
+    expect(() => validateDiagramShape(baseDiagram({ sourceRefs: [{ repo: 'host/org/other' }] }), 'd1')).toThrow(
+      InvalidDiagramError
+    )
+  })
+
+  it('rejects a sourceRef object missing "repo"', () => {
+    expect(() => validateDiagramShape(baseDiagram({ sourceRefs: [{ path: 'lib/baz.ts:5' }] }), 'd1')).toThrow(
+      InvalidDiagramError
+    )
+  })
+
+  it('rejects a sourceRef object with an extra field', () => {
+    expect(() =>
+      validateDiagramShape(baseDiagram({ sourceRefs: [{ repo: 'a', path: 'b', extra: 'x' }] }), 'd1')
+    ).toThrow(InvalidDiagramError)
+  })
+
+  it('rejects a sourceRef entry that is neither a string nor an object', () => {
+    expect(() => validateDiagramShape(baseDiagram({ sourceRefs: [42] }), 'd1')).toThrow(InvalidDiagramError)
+  })
+})

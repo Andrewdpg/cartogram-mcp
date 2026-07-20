@@ -20,6 +20,11 @@ export const UML_RELATIONSHIPS: readonly UmlRelationship[] = [
   'association', 'composition', 'inheritance', 'dependency',
 ]
 
+export interface SourceRef {
+  repo: string
+  path: string
+}
+
 export interface DiagramNodeData {
   id: string
   label: string
@@ -33,7 +38,7 @@ export interface DiagramNodeData {
   gotchas?: string[]
   attributes?: string[]
   operations?: string[]
-  sourceRefs?: string[]
+  sourceRefs?: Array<string | SourceRef>
   externalRef?: { repo: string; artifactId: string }
 }
 

@@ -19,6 +19,11 @@ export const UML_RELATIONSHIPS: readonly UmlRelationship[] = [
   'association', 'composition', 'inheritance', 'dependency',
 ]
 
+export interface SourceRef {
+  repo: string
+  path: string
+}
+
 export interface DiagramNodeData {
   id: string
   label: string
@@ -32,7 +37,7 @@ export interface DiagramNodeData {
   gotchas?: string[]
   attributes?: string[]
   operations?: string[]
-  sourceRefs?: string[]
+  sourceRefs?: Array<string | SourceRef>
   externalRef?: { repo: string; artifactId: string }
 }
 
@@ -63,6 +68,21 @@ export class InvalidDiagramError extends Error {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === 'string')
+}
+
+function isValidSourceRefObject(value: unknown): value is SourceRef {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Record<string, unknown>).repo === 'string' &&
+    typeof (value as Record<string, unknown>).path === 'string' &&
+    Object.keys(value as object).length === 2
+  )
+}
+
+function isValidSourceRefsArray(value: unknown): value is Array<string | SourceRef> {
+  if (!Array.isArray(value)) return false
+  return value.every((v) => (typeof v === 'string' && v.length > 0) || isValidSourceRefObject(v))
 }
 
 const NODE_FIELDS = new Set([
@@ -132,10 +152,16 @@ export function validateDiagramShape(raw: unknown, diagramId: string): Diagram {
     if (node.dataOwned !== undefined && typeof node.dataOwned !== 'string') {
       throw new InvalidDiagramError(diagramId, `node "${node.id}" has invalid "dataOwned" (must be string)`)
     }
-    for (const field of ['techStack', 'gotchas', 'attributes', 'operations', 'sourceRefs'] as const) {
+    for (const field of ['techStack', 'gotchas', 'attributes', 'operations'] as const) {
       if (node[field] !== undefined && !isStringArray(node[field])) {
         throw new InvalidDiagramError(diagramId, `node "${node.id}" has invalid "${field}" (must be string[])`)
       }
+    }
+    if (node.sourceRefs !== undefined && !isValidSourceRefsArray(node.sourceRefs)) {
+      throw new InvalidDiagramError(
+        diagramId,
+        `node "${node.id}" has invalid "sourceRefs" (must be an array of non-empty strings or { repo, path } objects)`
+      )
     }
     if (node.externalRef !== undefined) {
       const ref = node.externalRef as Record<string, unknown> | null
