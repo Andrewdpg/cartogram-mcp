@@ -1,11 +1,14 @@
-import type { DiagramNodeData, Notation } from '../lib/types'
+import { useState } from 'react'
+import type { DiagramNodeData, Notation, SourceRef } from '../lib/types'
 import { getTechIcon } from '../lib/techIcons'
 import { TechBadge } from './TechBadge'
+import { openFile } from '../lib/apiClient'
 
 export interface DiagramDetailPanelProps {
   node: DiagramNodeData | null
   notation: Notation
   onClose: () => void
+  repoId: string
 }
 
 const sectionHeadingStyle = {
@@ -17,7 +20,52 @@ const sectionHeadingStyle = {
   color: 'var(--text-faint)',
 }
 
-export function DiagramDetailPanel({ node, notation, onClose }: DiagramDetailPanelProps) {
+function sourceRefLabel(ref: string | SourceRef): string {
+  return typeof ref === 'string' ? ref : ref.path
+}
+
+// Prop is named `sourceRef`, not `ref` — React intercepts a prop literally
+// named `ref` on JSX elements for ref-forwarding, so a plain function
+// component would never actually receive it as a normal prop.
+function SourceRefItem({ repoId, sourceRef }: { repoId: string; sourceRef: string | SourceRef }) {
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+
+  const handleClick = async () => {
+    setPending(true)
+    setError(null)
+    try {
+      await openFile(repoId, sourceRef)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <li style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+      <button
+        onClick={handleClick}
+        disabled={pending}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          color: 'inherit',
+          font: 'inherit',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        {sourceRefLabel(sourceRef)}
+      </button>
+      {error && <div style={{ color: 'var(--danger, #d33)' }}>{error}</div>}
+    </li>
+  )
+}
+
+export function DiagramDetailPanel({ node, notation, onClose, repoId }: DiagramDetailPanelProps) {
   if (!node) {
     return <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Click a node's eye icon to see its details here.</p>
   }
@@ -99,9 +147,7 @@ export function DiagramDetailPanel({ node, notation, onClose }: DiagramDetailPan
           <h3 style={sectionHeadingStyle}>Source</h3>
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {node.sourceRefs.map((ref, i) => (
-              <li key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
-                {ref}
-              </li>
+              <SourceRefItem key={i} repoId={repoId} sourceRef={ref} />
             ))}
           </ul>
         </section>

@@ -164,6 +164,7 @@ export function DiagramScreen() {
           onToggleCollapsed={() => setPanelCollapsed((c) => !c)}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          repoId={repoId!}
         />
       </div>
     </div>

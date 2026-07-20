@@ -13,6 +13,7 @@ export interface SidePanelProps {
   onToggleCollapsed: () => void
   activeTab: Tab
   onTabChange: (tab: Tab) => void
+  repoId: string
 }
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -30,6 +31,7 @@ export function SidePanel({
   onToggleCollapsed,
   activeTab,
   onTabChange,
+  repoId,
 }: SidePanelProps) {
   return (
     <aside className="side-panel" style={{ width: collapsed ? 52 : 360, flexShrink: 0 }}>
@@ -66,7 +68,7 @@ export function SidePanel({
       {!collapsed && (
         <div className="side-panel-body">
           {activeTab === 'details' && (
-            <DiagramDetailPanel node={node} notation={notation} onClose={onCloseNode} />
+            <DiagramDetailPanel node={node} notation={notation} onClose={onCloseNode} repoId={repoId} />
           )}
           {activeTab === 'json' && (
             <textarea

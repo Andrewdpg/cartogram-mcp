@@ -1,3 +1,5 @@
+import type { SourceRef } from './types'
+
 export interface RegistryEntry {
   path: string
   name: string
@@ -52,4 +54,16 @@ export interface RepoGraphResponse {
 
 export async function fetchRepoGraph(): Promise<RepoGraphResponse> {
   return getJson<RepoGraphResponse>('/api/repo-graph')
+}
+
+export async function openFile(repoId: string, ref: string | SourceRef): Promise<void> {
+  const res = await fetch('/api/open-file', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repoId, ref }),
+  })
+  if (!res.ok) {
+    const body = (await res.json()) as { error?: string }
+    throw new Error(body.error ?? `Request to /api/open-file failed with status ${res.status}`)
+  }
 }

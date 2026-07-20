@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fetchRepos, fetchArtifacts, fetchArtifact, fetchRepoGraph } from './apiClient'
+import { fetchRepos, fetchArtifacts, fetchArtifact, fetchRepoGraph, openFile } from './apiClient'
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -69,5 +69,35 @@ describe('apiClient', () => {
 
     expect(fetch).toHaveBeenCalledWith('/api/repo-graph')
     expect(result).toEqual(body)
+  })
+
+  it('openFile POSTs repoId and ref to /api/open-file', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({}))
+
+    await openFile('host/org/repo', 'src/foo.ts:42')
+
+    expect(fetch).toHaveBeenCalledWith('/api/open-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repoId: 'host/org/repo', ref: 'src/foo.ts:42' }),
+    })
+  })
+
+  it('openFile accepts a {repo, path} ref for cross-repo sourceRefs', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({}))
+    const ref = { repo: 'host/org/other', path: 'lib/baz.ts:5' }
+
+    await openFile('host/org/repo', ref)
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/open-file',
+      expect.objectContaining({ body: JSON.stringify({ repoId: 'host/org/repo', ref }) })
+    )
+  })
+
+  it('openFile throws the server error message on failure', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ error: 'repoId "x" is not registered' }, 404))
+
+    await expect(openFile('host/org/repo', 'src/foo.ts')).rejects.toThrow('repoId "x" is not registered')
   })
 })

@@ -11,6 +11,7 @@ const baseProps = {
   collapsed: false,
   onToggleCollapsed: vi.fn(),
   onTabChange: vi.fn(),
+  repoId: 'host/org/repo',
 }
 
 describe('SidePanel', () => {
